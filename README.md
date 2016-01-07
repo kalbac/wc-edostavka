@@ -33,7 +33,7 @@
 
 ## Issues
 
-Вопросы и предложения пишите в раздел [Issues]
+Вопросы и предложения пишите в раздел [Issues](https://github.com/kalbac/wc-edostavka/issues)
 
 ## Showcase
 
