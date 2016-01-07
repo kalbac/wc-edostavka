@@ -1,4 +1,3 @@
-*.iml
 .idea/
 *.ipr
 *.iws
@@ -27,3 +26,5 @@ wp-content/plugins/hello.php
 /license.txt
 /node_modules/*
 codesniffer.ruleset.xml
+.travis.yml
+.editorconfig
