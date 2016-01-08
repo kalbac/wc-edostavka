@@ -30,6 +30,12 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->show_notice   	  = $this->get_option( 'show_notice' );
 		$this->enabled_in_cart    = $this->get_option( 'enabled_in_cart' );
 		$this->corporate_service  = $this->get_option( 'corporate_service' );
+		$this->hide_standart_wc_city = $this->get_option('hide_standart_wc_city');
+		$this->autoselect_edostavka_shipping_method = $this->get_option('autoselect_edostavka_shipping_method');
+        $this->replace_shipping_label_door = $this->get_option( 'replace_shipping_label_door' );
+		$this->shipping_label_door = $this->get_option( 'shipping_label_door' );
+		$this->replace_shipping_label_stock = $this->get_option( 'replace_shipping_label_stock' );
+		$this->shipping_label_stock = $this->get_option( 'shipping_label_stock' );
 		$this->login              = $this->get_option( 'login' );
 		$this->password           = $this->get_option( 'password' );
 		$this->minimum_weight	  = $this->get_option( 'minimum_weight' );
@@ -39,15 +45,19 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->debug              = $this->get_option( 'debug' );
 		$this->countries          = apply_filters('woocommerce_edostavka_countries', $this->get_option( 'countries' ) );
 		$this->availability		  = $this->get_option( 'availability' );
-		
+
 		$this->availability       = 'specific';
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
 
+		if ($this->hide_standart_wc_city === 'yes') {
+			add_filter( 'woocommerce_checkout_fields' , array($this, 'hide_city_checkout_fields'));
+		}
+
 		if ( 'yes' == $this->debug ) {
 			$this->log = WC_Edostavka::logger();
 		}
-		
+
 	}
 
 	protected function woocommerce_method() {
@@ -57,10 +67,10 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 	}
 
 	public function init_form_fields() {
-		
+
 		$this->form_fields = array(
 			'enabled' => array(
-				'title' 		=> __( 'Вкыл/Выкл' ),
+				'title' 		=> __( 'Вкл/Выкл' ),
 				'type' 			=> 'checkbox',
 				'label' 		=> __( 'Включить метод доставки' ),
 				'default' 		=> 'no'
@@ -114,7 +124,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'desc_tip'         => true,
 				'default'          => '0',
 				'placeholder'      => '0'
-			),			
+			),
 			'fee' => array(
 				'title' 		=> __( 'Наценка' ),
 				'type' 			=> 'text',
@@ -161,17 +171,15 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'default'		=> __( 'Нет ни одного доступного тарифа в указанный город/область.' ),
 				'desc_tip'      => true
 			),
+			'hide_standart_wc_city' => array(
+				'title'       => __('Скрыть стандартное поле ввода "Населенный пункт"'),
+				'type'        => 'checkbox',
+				'label'       => $this->hide_standart_wc_city == 'yes' ? __('Нет') : __('Да'),
+				'default'     => 'no'
+			),
 			'services' => array(
 				'title'            => __( 'Тарифы' ),
 				'type'             => 'title'
-			),
-			'corporate_service' => array(
-				'title' 		=> __( 'Разрешенные тарифы' ),
-				'description'	=> __( 'Укажите какие тарифы могут использоваться при расчёте стоимости доставки.' ),
-				'desc_tip'      => true,
-				'type' 			=> 'multiselect',
-				'class'			=> 'chosen_select',
-				'options'		=> WC_Edostavka::wc_edostavka_delivery_tariffs()
 			),
 			'login' => array(
 				'title' 		=> __( 'API логин' ),
@@ -186,6 +194,52 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'description'	=> __( 'Пароль, выдаётся компанией СДЭК по вашему запросу' ),
 				'default'		=> '',
 				'desc_tip'      => true
+			),
+			'corporate_service' => array(
+				'title' 		=> __( 'Разрешенные тарифы' ),
+				'description'	=> __( 'Укажите какие тарифы могут использоваться при расчёте стоимости доставки.' ),
+				'desc_tip'      => true,
+				'type' 			=> 'multiselect',
+				'class'			=> 'chosen_select',
+				'options'		=> WC_Edostavka::wc_edostavka_delivery_tariffs()
+			),
+			'autoselect_edostavka_shipping_method' => array(
+				'title'            => __( 'Автоматически выбирать доставку СДЭК, если она доступна' ),
+				'type'             => 'checkbox',
+				'label'            => $this->autoselect_edostavka_shipping_method == 'yes' ? __('Нет') : __( 'Да' ),
+				'description'      => __( 'Если заказ может быть доставлен хотя бы по одному тарифу СДЭК, автоматически выбрать этот способ доставки.' ),
+				'desc_tip'         => true,
+				'default'          => 'no'
+			),
+			'replace_shipping_label_door' => array(
+				'title'			=> __( 'Заменять названия тарифов СДЭК до двери' ),
+				'type'			 => 'checkbox',
+				'label'			=> $this->replace_shipping_label_door == 'yes' ? __('Нет') : __( 'Да' ),
+				'description'	  => __( 'Показывать введенное в поле "Название тарифов СДЭК до двери" значение вместо названия тарифа определенное СДЭК?' ),
+				'desc_tip'		 => true,
+				'default'		  => 'no'
+			),
+			'shipping_label_door' => array(
+				'title' 		=> __( 'Название тарифов СДЭК до двери' ),
+				'type' 			=> 'textarea',
+				'description'	=> __( 'Напишите текст, который будет отображатся вместо названия тарифов СДЭК до двери.' ),
+				'default'		=> __( 'Доставка курьером до двери.' ),
+				'desc_tip'	  => true
+			),
+			'replace_shipping_label_stock' => array(
+				'title'			=> __( 'Заменять названия тарифов СДЭК до склада' ),
+				'type'			 => 'checkbox',
+				'label'			=> $this->replace_shipping_label_stock == 'yes' ? __('Нет') : __( 'Да' ),
+				'description'	  => __( 'Показывать введенное в поле "Название тарифов СДЭК до ПВЗ" значение вместо названия тарифа определенное СДЭК?' ),
+				'desc_tip'		 => true,
+				'default'		  => 'no'
+			),
+			'shipping_label_stock' => array(
+				'title' 		=> __( 'Название тарифов СДЭК до ПВЗ' ),
+				'type' 			=> 'textarea',
+				'description'	=> __( 'Напишите текст, который будет отображатся вместо названия тарифов СДЭК до склада.' ),
+				'default'		=> __( 'Доставка до пункта выдачи заказов.' ),
+				'desc_tip'	  => true
 			),
 			'package_standard' => array(
 				'title'            => __( 'Параметры товара' ),
@@ -236,7 +290,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 	}
 
 	public function admin_options() {
-		
+
 		echo '<h3>' . $this->method_title . '</h3>';
 		echo '<p>' . $this->method_description . '</p>';
 		echo '<table class="form-table">';
@@ -253,7 +307,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 	protected function edostavka_services() {
 		return $this->corporate_service;
 	}
-	
+
 	function is_available( $package ) {
 		if ( $this->enabled == "no" ) return false;
 
@@ -274,7 +328,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		return apply_filters( 'woocommerce_shipping_' . $this->id . '_is_available', true );
 	}
 
-	
+
 	protected function edostavka_calculate( $package ) {
 
 		$state = ( isset( $package['destination']['state'] ) && ! empty( $package['destination']['state'] ) ) ? $package['destination']['state'] : WC()->customer->get_state();
@@ -291,7 +345,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$connect->set_debug( $this->debug );
 		$connect->set_login( $this->login );
 		$connect->set_password( $this->password );
-		
+
 		if( isset( $package['post_data']['billing_date'] ) && ! empty( $package['post_data']['billing_date'] ) ) {
 		   // Конвертируем дату доствки в нужный формат для СДЕК
 			$date_string = $package['post_data']['billing_date'];
@@ -299,9 +353,9 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 			$date_conv = date( 'Y-m-d', $date_time );
 			$connect->set_date( $date_conv );
 		}
-		
+
 		$shipping = $connect->get_shipping();
-		
+
 		if ( ! empty( $shipping ) ) {
 			return $shipping;
 		} else {
@@ -321,21 +375,31 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$errors          = array();
 
 		$shipping_values = $this->edostavka_calculate( $package );
-		
+
 		if ( ! empty( $shipping_values ) ) {
-			
+			$chosen_method = null;
 			foreach ( $shipping_values as $code => $shipping ) {
-				
-				
+
+
 				if ( ! isset( $shipping['result'] ) ) {
 					continue;
 				}
-				
-				$name          = WC_Edostavka_Connect::get_service_name( $code );
+
+				if ($this->replace_shipping_label_door === 'yes'
+					&& WC_Edostavka::wc_edostavka_delivery_tariffs_type($code) === 'door'
+				) {
+					$name = $this->shipping_label_door;
+				} elseif ($this->replace_shipping_label_stock === 'yes'
+					&& WC_Edostavka::wc_edostavka_delivery_tariffs_type($code) === 'stock'
+				) {
+					$name = $this->shipping_label_stock;
+				} else {
+					$name = WC_Edostavka_Connect::get_service_name($code);
+				}
 				$price		   = $shipping['result']['price'];
 
 				$label = ( 'yes' == $this->display_date ) ? WC_Edostavka_Connect::estimating_delivery( apply_filters( 'woocommerce_edostavka_label_name', $name ), $shipping['result']['deliveryPeriodMax'], $this->additional_time ) : $name;
-					
+
 					$cost  = $this->fix_format( esc_attr( $price ) );
 					$fee   = $this->get_fee( $this->fix_format( $this->fee ), $cost );
 					array_push(
@@ -346,9 +410,14 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 							'cost'  => $cost + $fee,
 						)
 					);
+				$chosen_method = $this->id . '_' . $code;
 			}
 			
 			$rates = apply_filters( 'woocommerce_edostavka_shipping_methods', $rates, $package );
+			if ($this->autoselect_edostavka_shipping_method === 'yes'
+				&& $chosen_method !== null) {
+				WC()->session->set( 'chosen_shipping_methods', array($chosen_method) );
+			}
 
 			if( sizeof( $rates ) > 0 ) {
 				foreach ( $rates as $rate ) $this->add_rate( $rate );
@@ -359,5 +428,11 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 					wc_add_notice( $this->error_text, 'error');
 			}			
 		}
+	}
+
+	function hide_city_checkout_fields( $fields ) {
+		$fields['billing']['billing_city']['class'][] = 'input-hidden';
+		$fields['shipping']['shipping_city']['class'][] = 'input-hidden';
+		return $fields;
 	}
 }
