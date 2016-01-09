@@ -22,10 +22,21 @@ jQuery(function($){
                     if( $.inArray( parseInt( tatiff_id ), woocommerce_params.is_door ) >= 0 ) {
                         //Если СДЕК до двери
                         $( '#billing_delivery_point_field' ).hide().addClass('hidden');
+                        //Для корректной работы с Select2
+                        $( '#billing_delivery_point').hide().addClass('hidden');
+                        $( '#s2id_billing_delivery_point').hide().addClass('hidden');
                         $( '#billing_address_1_field, #billing_address_2_field').show().removeClass('hidden');
                     } else {
                         //Если СДЕК до склада
                         $( '#billing_delivery_point_field' ).show().removeClass('hidden');
+                        //Для корректной работы с Select2
+                        if (document.getElementById("s2id_billing_delivery_point") !== null) {
+                            $('#s2id_billing_delivery_point').show().removeClass('hidden');
+                            $( '#billing_delivery_point').hide().addClass('hidden');
+                        } else {
+                            $('#billing_delivery_point').show().removeClass('hidden');
+                        }
+
                         $( '#billing_address_1_field, #billing_address_2_field' ).hide().addClass('hidden');
                     }
 
