@@ -50,10 +50,6 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
 
-		if ($this->hide_standart_wc_city === 'yes') {
-			add_filter( 'woocommerce_checkout_fields' , array($this, 'hide_city_checkout_fields'));
-		}
-
 		if ( 'yes' == $this->debug ) {
 			$this->log = WC_Edostavka::logger();
 		}
@@ -428,11 +424,5 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 					wc_add_notice( $this->error_text, 'error');
 			}			
 		}
-	}
-
-	function hide_city_checkout_fields( $fields ) {
-		$fields['billing']['billing_city']['class'][] = 'input-hidden';
-		$fields['shipping']['shipping_city']['class'][] = 'input-hidden';
-		return $fields;
 	}
 }

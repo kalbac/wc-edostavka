@@ -42,6 +42,14 @@ class WC_Edostavka {
 
 		add_filter( 'woocommerce_checkout_fields' , array($this, 'override_checkout_billing_state'));
 
+		// hide city field
+		$settings = get_option( 'woocommerce_' . 'edostavka' . '_settings', null );
+		if (array_key_exists('hide_standart_wc_city', $settings)
+			&& $settings['hide_standart_wc_city'] === 'yes'
+		) {
+			add_filter('woocommerce_checkout_fields', array($this, 'edostavka_hide_city_checkout_fields'));
+		}
+
 		//Ajax
 		add_filter( 'woocommerce_update_order_review_fragments',  array( $this, 'ajax_update_delivery_points' ) );
 
@@ -221,6 +229,12 @@ class WC_Edostavka {
 		return $fields;
 	}
 
+	public function edostavka_hide_city_checkout_fields( $fields ) {
+		$fields['billing']['billing_city']['class'][] = 'input-hidden';
+		$fields['shipping']['shipping_city']['class'][] = 'input-hidden';
+		return $fields;
+	}
+
 	public function add_ons_attributes( $checkout_fields ){
 
 		$checkout_fields['billing']['billing_delivery_point'] = array(
@@ -353,5 +367,6 @@ function edostavka_load_states( $states ) {
 
 	return $states;
 }
+
 
 
