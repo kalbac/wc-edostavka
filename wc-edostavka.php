@@ -3,7 +3,7 @@
 Plugin Name: eDostavka Shipping Method
 Plugin URI: http://martirosoff.ru/
 Description: Плагин добавляет метод расчёта стоимости доставки через курьерскую службу <a href="http://www.edostavka.ru" target="_blank">СДЭК</a> в плагин WooCommerce.
-Version: 1.2
+Version: 1.2.1
 Author: Мартиросов Максим
 Author URI: http://martirosoff.ru
 */
@@ -16,7 +16,7 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 class WC_Edostavka {
 	
-	const VERSION = '1.2';
+	const VERSION = '1.2.1';
 	protected static $method_id = 'edostavka';
 	protected static $instance = null;
 
@@ -30,25 +30,17 @@ class WC_Edostavka {
 		$this->includes();
 		if ( is_admin() ) {
 			$this->admin_includes();
-		} else {
-			wp_enqueue_style( 'wc-edostavka', WP_PLUGIN_URL . '/wc-edostavka/assets/css/edostavka.css', array());
 		}
+
 		add_filter( 'woocommerce_shipping_methods', array( $this, 'add_method' ) );
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'add_ons_attributes') );
+		add_filter( 'woocommerce_default_address_fields', array( $this, 'add_city_id') );
+		add_filter( 'woocommerce_country_locale_field_selectors', array( $this, 'add_city_id_field') );
+		add_filter( 'default_checkout_billing_state_name', array( $this, 'default_state_name_value' ) );
 		add_action( 'woocommerce_checkout_process', array( $this, 'delivery_point_field_process' ) );
 		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'checkout_field_update_order_meta' ) );
 		add_action( 'woocommerce_email_order_meta', array( $this, 'email_order_meta' ), 99 );
 		add_filter( 'default_checkout_state', array( &$this, 'default_checkout_state' ), 99 );
-
-		add_filter( 'woocommerce_checkout_fields' , array($this, 'override_checkout_billing_state'));
-
-		// hide city field
-		$settings = get_option( 'woocommerce_' . 'edostavka' . '_settings', null );
-		if (array_key_exists('hide_standart_wc_city', $settings)
-			&& $settings['hide_standart_wc_city'] === 'yes'
-		) {
-			add_filter('woocommerce_checkout_fields', array($this, 'edostavka_hide_city_checkout_fields'));
-		}
 
 		//Ajax
 		add_filter( 'woocommerce_update_order_review_fragments',  array( $this, 'ajax_update_delivery_points' ) );
@@ -56,6 +48,9 @@ class WC_Edostavka {
 		add_filter( 'woocommerce_params', array( $this, 'is_door_params' ) );
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'load_script' ) );
+
+		add_action( 'wp_ajax_nopriv_get_city_list_by_term', array( $this, 'get_city_by_term' ) );
+		add_action( 'wp_ajax_get_city_list_by_term', array( $this, 'get_city_by_term' ) );
 	}
 
 	public function activate() {
@@ -66,12 +61,26 @@ class WC_Edostavka {
 	}
 
 	public function load_script() {
-		if( is_checkout() )
-			wp_enqueue_script(
-				'edostavka-script',
-				plugins_url( '/assets/js/edostavka.js' , __FILE__ ),
-				array( 'jquery' )
-			);
+		wp_register_script(
+			'edostavka-script',
+			plugins_url( '/assets/js/edostavka.js' , __FILE__ ),
+			array( 'jquery' )
+		);
+
+		wp_register_style( 'jquery-ui-styles', '//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css' );
+
+		wp_register_style(
+			'wc-edostavka',
+			plugins_url( '/assets/css/edostavka.css' , __FILE__ ),
+			array()
+		);
+
+		if( is_checkout() ) {
+			wp_enqueue_style( 'wc-edostavka' );
+			wp_enqueue_style( 'jquery-ui-styles' );
+			wp_enqueue_script( 'jquery-ui-autocomplete' );
+			wp_enqueue_script( 'edostavka-script' );
+		}
 	}
 
 	public static function get_instance() {
@@ -215,25 +224,6 @@ class WC_Edostavka {
 		return $przlist;
 	}
 
-	function override_checkout_billing_state( $fields ) {
-		if (isset($fields['billing']['billing_state'])) {
-			$fields['billing']['billing_state']['label'] = __( 'City', 'woocommerce' );
-			$fields['billing']['billing_state']['required'] = true;
-		} else {
-			$fields['billing']['billing_state'] = array(
-				'type' => 'state',
-				'label' => __( 'Town / City', 'woocommerce' ),
-				'required'  => true
-			);
-		}
-		return $fields;
-	}
-
-	public function edostavka_hide_city_checkout_fields( $fields ) {
-		$fields['billing']['billing_city']['class'][] = 'input-hidden';
-		$fields['shipping']['shipping_city']['class'][] = 'input-hidden';
-		return $fields;
-	}
 
 	public function add_ons_attributes( $checkout_fields ){
 
@@ -261,7 +251,31 @@ class WC_Edostavka {
 			}
 		}
 
+		$checkout_fields['billing']['state']['class'] = array( 'hidden' );
+
 		return $checkout_fields;
+	}
+
+	public function add_city_id( $fields ) {
+		$fields['state_name'] = array(
+			'label'       => 'Город или область',
+			'required'    => true,
+			'class'       => array( 'form-row-first', 'address-field' )
+		);
+		return $fields;
+	}
+
+	public function add_city_id_field( $locale_fields ) {
+		$locale_fields['state_name'] = '#billing_state_name_field';
+		return $locale_fields;
+	}
+
+	public function default_state_name_value( $value ) {
+		$ru_states = $this->get_ru_states();
+		if( isset( $ru_states[ WC()->customer->get_state() ] ) ) {
+			$value = $ru_states[ WC()->customer->get_state() ];
+		}
+		return $value;
 	}
 
 	public function delivery_point_field_process() {
@@ -290,6 +304,10 @@ class WC_Edostavka {
 			}
 			update_post_meta( $order_id, '_delivery_point', $delivery_point );
 		}
+
+		if ( ! empty( $_POST['billing_state_name'] ) ) {
+			update_post_meta( $order_id, '_state_name', esc_attr( $_POST['billing_state_name'] ) );
+		}
 	}
 
 	public function email_order_meta( $order_id ){
@@ -297,9 +315,13 @@ class WC_Edostavka {
 		if( strpos( self::get_order_shipping_method( $order ), self::get_method_id() ) === 0 ) {
 			$state = absint( $order->billing_state );
 			$delivery_point = get_post_meta( $order->id, '_delivery_point', true );
+			$state_name = get_post_meta( $order->id, '_state_name', true );
 			$delivery_points = self::get_delivery_points( $state );
 			if( isset( $delivery_points[ $delivery_point ] ) ) {
 				echo '<h2>Пункт выдачи заказов</h2>';
+				if( ! empty( $state_name ) ) {
+					echo '<p><strong>Город</strong>: ' . $state_name . '</p>';
+				}
 				echo '<p><strong>Адрес</strong>: ' . $delivery_points[ $delivery_point ]['Address'] . '</p>';
 				echo '<p><strong>Режим работы</strong>: ' . $delivery_points[ $delivery_point ]['WorkTime'] . '</p>';
 				echo '<p><strong>Телефон:</strong>: ' . $delivery_points[ $delivery_point ]['Phone'] . '</p>';
@@ -328,7 +350,19 @@ class WC_Edostavka {
 	public function is_door_params( $params ) {
 		$params['is_door'] = array( 1, 3, 11, 16, 18, 57, 58, 59, 60, 61, 137, 139 );
 		$params['chosen_shipping_method'] = self::get_chosen_shipping_method();
+		$params['geo_json_url']	= apply_filters( 'edostavka_cityes_json_url', add_query_arg( array( 'action' => 'get_city_list_by_term' ), admin_url( 'admin-ajax.php' ) ) );
 		return $params;
+	}
+
+	public function get_ru_states() {
+
+		$states_ru = array();
+
+		if ( file_exists( untrailingslashit( plugin_dir_path( __FILE__ ) ) . '/includes/states/RU.php' ) ) {
+			$states_ru = include( untrailingslashit( plugin_dir_path( __FILE__ ) ) . '/includes/states/RU.php' );
+		}
+
+		return $states_ru;
 	}
 
 	public function default_checkout_state( $value ){
@@ -338,12 +372,33 @@ class WC_Edostavka {
 		return $value;
 	}
 
+	public function get_city_by_term() {
+
+		if( ! isset( $_GET['q'] ) ) return;
+
+		$cityes = array();
+		$input = strtolower( esc_attr( $_GET['q'] ) );
+		$i = 0;
+		foreach( array_map( 'strtolower', $this->get_ru_states() ) as $index => $state ) {
+			if ( stripos( $state, $input ) !== false ) {
+				$cityes[$i]['id'] = $index;
+				$cityes[$i]['name'] = $state;
+				$i++;
+			}
+		}
+
+		wp_send_json( $cityes );
+	}
+
 }
 	add_action( 'plugins_loaded', array( 'WC_Edostavka', 'get_instance' ), 0 );
 
 endif;
 
-add_filter( 'woocommerce_states', 'edostavka_load_states', 999 );
+if( defined( 'DOING_AJAX' ) || is_admin() ) {
+	add_filter( 'woocommerce_states', 'edostavka_load_states', 999 );
+}
+
 
 /**
  * @param $states

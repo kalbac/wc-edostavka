@@ -30,7 +30,6 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->show_notice   	  = $this->get_option( 'show_notice' );
 		$this->enabled_in_cart    = $this->get_option( 'enabled_in_cart' );
 		$this->corporate_service  = $this->get_option( 'corporate_service' );
-		$this->hide_standart_wc_city = $this->get_option('hide_standart_wc_city');
 		$this->autoselect_edostavka_shipping_method = $this->get_option('autoselect_edostavka_shipping_method');
         $this->replace_shipping_label_door = $this->get_option( 'replace_shipping_label_door' );
 		$this->shipping_label_door = $this->get_option( 'shipping_label_door' );
@@ -166,12 +165,6 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'description'	=> __( 'Напишите текст который будет отображатся на странице оформления заказа в случае если по указоному маршруту не найдено ни одного тарифа.' ),
 				'default'		=> __( 'Нет ни одного доступного тарифа в указанный город/область.' ),
 				'desc_tip'      => true
-			),
-			'hide_standart_wc_city' => array(
-				'title'       => __('Скрыть стандартное поле ввода "Населенный пункт"'),
-				'type'        => 'checkbox',
-				'label'       => $this->hide_standart_wc_city == 'yes' ? __('Нет') : __('Да'),
-				'default'     => 'no'
 			),
 			'services' => array(
 				'title'            => __( 'Тарифы' ),

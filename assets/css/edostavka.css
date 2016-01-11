@@ -1,3 +1,4 @@
-.input-hidden {
+.input-hidden,
+.form-row.hidden {
     display: none !important;
 }

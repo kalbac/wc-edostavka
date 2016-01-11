@@ -51,6 +51,43 @@ jQuery(function($){
             $( 'body' ).on( 'change updated_checkout', 'select.state_select', function( event ) {
                 $( 'body' ).trigger('update_checkout');
             });
+
+            var load_autocomplate_states = function() {
+                $('input#billing_state_name').each( function() {
+                    var _self = $(this);
+                    _self.autocomplete({
+                        source: function(request,response) {
+                            $.ajax({
+                                url: woocommerce_params.geo_json_url,
+                                dataType: "json",
+                                data: {
+                                    q: function () { return _self.val() },
+                                    name_startsWith: function () { return _self.val() }
+                                },
+                                success: function( data ) {
+                                    response( $.map( data, function( item ) {
+                                        return {
+                                            label: item.name,
+                                            value: item.name,
+                                            id: item.id
+                                        }
+                                    }));
+                                }
+                            });
+                        },
+                        minLength: 3,
+                        select: function( event, ui ) {
+
+                            $('#billing_state').val( ui.item.id );
+                            $( 'body' ).trigger('update_checkout');
+                        }
+                    });
+                });
+            };
+
+            load_autocomplate_states();
+
+            $( 'body' ).on('update_checkout', load_autocomplate_states() );
         }
     });
 
