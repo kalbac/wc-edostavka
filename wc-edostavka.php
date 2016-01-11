@@ -253,6 +253,11 @@ class WC_Edostavka {
 
 		$checkout_fields['billing']['state']['class'] = array( 'hidden' );
 
+		$settings = get_option( 'woocommerce_' . self::$method_id . '_settings' );
+		if( ! empty( $settings['hide_standart_wc_city'] ) && $settings['hide_standart_wc_city'] === 'yes' ) {
+			$checkout_fields['billing']['city']['class'] = array( 'hidden' );
+		}
+
 		return $checkout_fields;
 	}
 
