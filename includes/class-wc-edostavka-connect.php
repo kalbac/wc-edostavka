@@ -203,7 +203,6 @@ class WC_Edostavka_Connect {
 				if ( 'yes' == $this->debug ) {
 					$this->log->add( $this->id, 'Ответ от сервера СДЕК [' . self::get_service_name( $service ) . ']: ' . print_r( $result, true ) );
 				}
-				
 				$values[ $service ] = $result;
 				
 			} else {
