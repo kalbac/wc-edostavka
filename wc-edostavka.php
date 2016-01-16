@@ -3,7 +3,7 @@
 Plugin Name: eDostavka Shipping Method
 Plugin URI: http://martirosoff.ru/
 Description: Плагин добавляет метод расчёта стоимости доставки через курьерскую службу <a href="http://www.edostavka.ru" target="_blank">СДЭК</a> в плагин WooCommerce.
-Version: 1.2.1
+Version: 1.2.2
 Author: Мартиросов Максим
 Author URI: http://martirosoff.ru
 */
@@ -16,7 +16,7 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 class WC_Edostavka {
 	
-	const VERSION = '1.2.1';
+	const VERSION = '1.2.2';
 	protected static $method_id = 'edostavka';
 	protected static $instance = null;
 
@@ -37,6 +37,7 @@ class WC_Edostavka {
 		add_filter( 'woocommerce_default_address_fields', array( $this, 'add_city_id') );
 		add_filter( 'woocommerce_country_locale_field_selectors', array( $this, 'add_city_id_field') );
 		add_filter( 'default_checkout_billing_state_name', array( $this, 'default_state_name_value' ) );
+		add_action( 'woocommerce_after_checkout_billing_form', array( $this, 'delivery_points_map') );
 		add_action( 'woocommerce_checkout_process', array( $this, 'delivery_point_field_process' ) );
 		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'checkout_field_update_order_meta' ) );
 		add_action( 'woocommerce_email_order_meta', array( $this, 'email_order_meta' ), 99 );
@@ -67,6 +68,12 @@ class WC_Edostavka {
 			array( 'jquery' )
 		);
 
+		wp_register_script(
+			'edostavka-yandex-map',
+			'https://api-maps.yandex.ru/2.1/?lang=ru_RU',
+			array( 'jquery' )
+		);
+
 		wp_register_style( 'jquery-ui-styles', '//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css' );
 
 		wp_register_style(
@@ -79,6 +86,7 @@ class WC_Edostavka {
 			wp_enqueue_style( 'wc-edostavka' );
 			wp_enqueue_style( 'jquery-ui-styles' );
 			wp_enqueue_script( 'jquery-ui-autocomplete' );
+			wp_enqueue_script( 'edostavka-yandex-map' );
 			wp_enqueue_script( 'edostavka-script' );
 		}
 	}
@@ -339,6 +347,8 @@ class WC_Edostavka {
 
 		$html_billing_delivery_point = '<input type="text" class="hidden" value="0" name="billing_delivery_point" id="billing_delivery_point" />';
 
+		$html_billing_delivery_points_map = '<div id="edostavka_map" class="hidden"></div>';
+
 		$delivery_points = self::get_delivery_points( WC()->customer->get_state() );
 		if( sizeof( $delivery_points ) > 0 ) {
 			$html_billing_delivery_point = '<select name="billing_delivery_point" id="billing_delivery_point">';
@@ -347,15 +357,22 @@ class WC_Edostavka {
 				$html_billing_delivery_point .= sprintf('<option value="%s">%s</option>', $delivery_point['Code'], $delivery_point['Name'] . ' (' . $delivery_point['Address'] . ')');
 			}
 			$html_billing_delivery_point .= '</select>';
+
+			$html_billing_delivery_points_map = sprintf( "<div id='edostavka_map' data-state-name='%s' data-points='%s'></div>", $this->default_state_name_value( WC()->customer->get_state() ), json_encode( $delivery_points ) );
 		}
 		$fragments['#billing_delivery_point'] = $html_billing_delivery_point;
+		$fragments['#edostavka_map'] = $html_billing_delivery_points_map;
 		return $fragments;
+	}
+
+	public function delivery_points_map( $checkout ) {
+		echo '<div id="edostavka_map" class="hidden"></div>';
 	}
 
 	public function is_door_params( $params ) {
 		$params['is_door'] = array( 1, 3, 11, 16, 18, 57, 58, 59, 60, 61, 137, 139 );
 		$params['chosen_shipping_method'] = self::get_chosen_shipping_method();
-		$params['geo_json_url']	= apply_filters( 'edostavka_cityes_json_url', add_query_arg( array( 'action' => 'get_city_list_by_term' ), admin_url( 'admin-ajax.php' ) ) );
+		$params['geo_json_url']	= apply_filters( 'edostavka_cityes_json_url', is_ssl() ? add_query_arg( array( 'action' => 'get_city_list_by_term' ), admin_url( 'admin-ajax.php' ) ) : 'http://api.cdek.ru/city/getListByTerm/jsonp.php' );
 		return $params;
 	}
 
@@ -379,7 +396,7 @@ class WC_Edostavka {
 
 	public function get_city_by_term() {
 
-		if( ! isset( $_GET['q'] ) ) return;
+		if( ! isset( $_POST['q'] ) ) return;
 
 		$cityes = array();
 		$input = strtolower( esc_attr( $_GET['q'] ) );
@@ -388,6 +405,7 @@ class WC_Edostavka {
 			if ( stripos( $state, $input ) !== false ) {
 				$cityes[$i]['id'] = $index;
 				$cityes[$i]['name'] = $state;
+				$cityes[$i]['countryCode'] = 'RU';
 				$i++;
 			}
 		}
