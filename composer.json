@@ -1,0 +1,29 @@
+{
+  "name": "kalbac/wc-edostavka",
+  "type": "project",
+  "license": "MIT",
+  "description": "Extantion for WP Woocommerce plugin. Adding SDEK shipping method.",
+  "homepage": "http://www.edostavka.ru/clients/integrator.html",
+  "authors": [
+    {
+      "name": "Maksim Martirosov",
+      "email": "maksim@martirosoff.ru",
+      "homepage": "http://martirosoff.ru"
+    }
+  ],
+  "keywords": [
+    "wordpress",
+    "woocommerce",
+    "plugin",
+    "shipping method",
+    "edostavka",
+    "sdek"
+  ],
+  "support": {
+    "issues": "https://github.com/kalbac/wc-edostavka/issues"
+  },
+  "require": {
+    "php": ">=5.3.0",
+    "composer/installers": "~1.0"
+  }
+}
