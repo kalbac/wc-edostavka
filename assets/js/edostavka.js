@@ -107,19 +107,21 @@ jQuery(function($){
                 });
             };
 
-            if ( $('#billing_delivery_point option').length > 1 && $().select2 ) {
-
+            if ( $('#billing_delivery_point option').length > 0 && $().select2 ) {
+				
                 delivery_point_select2();
-
-                $( 'body' ).bind( 'updated_checkout', function() {
+				delivery_points_map();
+                
+				$( 'body' ).bind( 'updated_checkout', function() {
                     $( '#billing_delivery_point_field' ).find( '.select2-container' ).remove();
+					$('div#edostavka_map').empty();
                     delivery_point_select2();
                     delivery_points_map();
                 });
             }
 
             var load_autocomplate_states = function() {
-                $('input#billing_state_name').each( function() {
+                $('#billing_state_name').each( function() {
                     var _self = $(this);
 
                     _self.autocomplete({
@@ -127,16 +129,20 @@ jQuery(function($){
                             $.ajax({
                                 url: woocommerce_params.geo_json_url,
                                 method: 'POST',
-                                dataType: "jsonp",
+                                dataType: woocommerce_params.is_ssl == 1 ? 'json' : "jsonp",
+								beforeSend: function( xhr ) {
+									_self.addClass( 'is_loading' );
+								},
                                 data: {
                                     q: function () { return _self.val(); },
                                     name_startsWith: function () { return _self.val(); },
                                     countryCodeList: function () { return [$('#billing_country').val()] }
                                 },
                                 success: function( data ) {
+									_self.toggleClass( 'is_loading', 'is_loaded' );
                                     data = data.geonames ? data.geonames : data;
                                     response( $.map ( data, function(item) {
-                                        if( item.countryCode == $('#billing_country').val() ) {
+                                        if( item.countryCode && item.countryCode == $('#billing_country').val() ) {
                                             return {
                                                 label: item.name,
                                                 value: item.name,
@@ -147,14 +153,18 @@ jQuery(function($){
                                     }));
                                 }
                             });
+							
                         },
-                        minLength: 3,
+                        minLength: 0,
                         select: function( event, ui ) {
-                            $('#billing_city').val( ui.item.value );
-                            $('#billing_state').val( ui.item.id );
+                            $('#billing_city, #shippng_city').val( ui.item.value );
+                            $('#billing_state, #shippng_state').val( ui.item.id );
                             $( 'body' ).trigger('update_checkout');
                         }
-                    });
+                    }).on('focus', function() {       
+							$( this ).autocomplete('search');
+					});
+					
                 });
             };
 

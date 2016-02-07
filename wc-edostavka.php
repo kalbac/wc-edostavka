@@ -3,7 +3,7 @@
 Plugin Name: eDostavka Shipping Method
 Plugin URI: http://martirosoff.ru/
 Description: Плагин добавляет метод расчёта стоимости доставки через курьерскую службу <a href="http://www.edostavka.ru" target="_blank">СДЭК</a> в плагин WooCommerce.
-Version: 1.2.2
+Version: 1.2.3
 Author: Мартиросов Максим
 Author URI: http://martirosoff.ru
 */
@@ -16,7 +16,7 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 class WC_Edostavka {
 	
-	const VERSION = '1.2.2';
+	const VERSION = '1.2.3';
 	protected static $method_id = 'edostavka';
 	protected static $instance = null;
 
@@ -42,6 +42,8 @@ class WC_Edostavka {
 		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'checkout_field_update_order_meta' ) );
 		add_action( 'woocommerce_email_order_meta', array( $this, 'email_order_meta' ), 99 );
 		add_filter( 'default_checkout_state', array( &$this, 'default_checkout_state' ), 99 );
+		
+		add_filter( 'pre_update_option_woocommerce_' . self::$method_id . '_settings', array( $this, 'check_shop_contract' ), 10, 2 );
 
 		//Ajax
 		add_filter( 'woocommerce_update_order_review_fragments',  array( $this, 'ajax_update_delivery_points' ) );
@@ -235,13 +237,6 @@ class WC_Edostavka {
 
 	public function add_ons_attributes( $checkout_fields ){
 
-		$checkout_fields['billing']['billing_delivery_point'] = array(
-			'label'     => __('Пункт выдачи заказов'),
-			'required'  => false,
-			'class'     => array('form-row-wide', strpos( self::get_chosen_shipping_method(), self::get_method_id() ) === 0 ? '' : 'hidden' ),
-			'clear'		=> true
-		);
-
 		$delivery_points = self::get_delivery_points( WC()->customer->get_state() );
 
 		if( sizeof( $delivery_points ) > 0 ) {
@@ -258,23 +253,43 @@ class WC_Edostavka {
 				$checkout_fields['billing']['billing_address_1']['required'] = false;
 			}
 		}
-
-		$checkout_fields['billing']['state']['class'] = array( 'hidden' );
-
-		$settings = get_option( 'woocommerce_' . self::$method_id . '_settings' );
-		if( ! empty( $settings['hide_standart_wc_city'] ) && $settings['hide_standart_wc_city'] === 'yes' ) {
-			$checkout_fields['billing']['city']['class'] = array( 'hidden' );
-		}
-
+		
 		return $checkout_fields;
 	}
 
-	public function add_city_id( $fields ) {
-		$fields['state_name'] = array(
-			'label'       => 'Город или область',
-			'required'    => true,
-			'class'       => array( 'form-row-first', 'address-field' )
-		);
+	public function add_city_id( $fields ) {		
+		
+		unset( $fields['postcode'] );
+		
+		$fields = array_merge( $fields, array(
+			'state_name'	=> array(
+				'label'       => 'Город или область',
+				'required'    => true,
+				'class'       => array( 'form-row-first', 'address-field' )
+			),
+			'delivery_point'	=> array(
+				'label'     => __('Пункт выдачи заказов'),
+				'required'  => false,
+				'class'     => array('form-row-wide', strpos( self::get_chosen_shipping_method(), self::get_method_id() ) === 0 ? '' : 'hidden' ),
+				'clear'		=> true
+			),
+			'postcode' => array(
+				'label'       => __( 'Postcode / ZIP', 'woocommerce' ),
+				'required'    => true,
+				'class'       => array( 'form-row-last', 'address-field' ),
+				'clear'       => true,
+				'validate'    => array( 'postcode' )
+			)
+		) );
+		
+		$settings = get_option( 'woocommerce_' . self::$method_id . '_settings' );
+		
+		if( ! empty( $settings['hide_standart_wc_city'] ) && $settings['hide_standart_wc_city'] === 'yes' ) {
+			$fields['city']['class'] = array( 'hidden' );
+		}
+		
+		$fields['state']['class'] = array( 'hidden' );
+		
 		return $fields;
 	}
 
@@ -285,7 +300,7 @@ class WC_Edostavka {
 
 	public function default_state_name_value( $value ) {
 		$ru_states = $this->get_ru_states();
-		if( isset( $ru_states[ WC()->customer->get_state() ] ) ) {
+		if( isset( $ru_states[ WC()->customer->get_state() ] ) && ! empty( $ru_states[ WC()->customer->get_state() ] ) ) {
 			$value = $ru_states[ WC()->customer->get_state() ];
 		}
 		return $value;
@@ -373,6 +388,7 @@ class WC_Edostavka {
 		$params['is_door'] = array( 1, 3, 11, 16, 18, 57, 58, 59, 60, 61, 137, 139 );
 		$params['chosen_shipping_method'] = self::get_chosen_shipping_method();
 		$params['geo_json_url']	= apply_filters( 'edostavka_cityes_json_url', is_ssl() ? add_query_arg( array( 'action' => 'get_city_list_by_term' ), admin_url( 'admin-ajax.php' ) ) : 'http://api.cdek.ru/city/getListByTerm/jsonp.php' );
+		$params['is_ssl']	= is_ssl();
 		return $params;
 	}
 
@@ -399,7 +415,7 @@ class WC_Edostavka {
 		if( ! isset( $_POST['q'] ) ) return;
 
 		$cityes = array();
-		$input = strtolower( esc_attr( $_GET['q'] ) );
+		$input = strtolower( esc_attr( $_POST['q'] ) );
 		$i = 0;
 		foreach( array_map( 'strtolower', $this->get_ru_states() ) as $index => $state ) {
 			if ( stripos( $state, $input ) !== false ) {
@@ -411,6 +427,25 @@ class WC_Edostavka {
 		}
 
 		wp_send_json( $cityes );
+	}
+	
+	public function check_shop_contract( $new, $old ) {
+		
+		$sended = get_option( 'woocommerce_sdek_contract_number_send' );
+		
+		$contract_number = ! empty( $new['contract_number'] ) ? esc_attr( trim( $new['contract_number'] ) ) : null;
+		
+		if( empty( $sended ) || ( ! is_null( $contract_number ) && $sended !== $contract_number ) ) {
+			
+			if( ! is_null( $contract_number ) && $contract_number !== $old['contract_number'] ) {
+				$message = sprintf('<p>Плагин "<a href="%s" target="_blank">WC eDostavka</a>" был установлен на сайт <a href="%s">%s</a>.</p><p><a href="mailto:%s">Администратор</a> указал в настройках договор %s</p>', 'https://github.com/kalbac/wc-edostavka', site_url(), get_option( 'blogname' ), get_option( 'admin_email' ), $contract_number );
+				
+				if( wc_mail( 'v.annenkova@cdek.ru', 'Активация плагина WC eDostavka', $message ) )
+					update_option( 'woocommerce_sdek_contract_number_send', $contract_number );
+			}
+		}
+		
+		return $new;
 	}
 
 }

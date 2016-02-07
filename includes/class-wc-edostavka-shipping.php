@@ -36,6 +36,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->shipping_label_door = $this->get_option( 'shipping_label_door' );
 		$this->replace_shipping_label_stock = $this->get_option( 'replace_shipping_label_stock' );
 		$this->shipping_label_stock = $this->get_option( 'shipping_label_stock' );
+		$this->contract_number	  = $this->get_option( 'contract_number' );
 		$this->login              = $this->get_option( 'login' );
 		$this->password           = $this->get_option( 'password' );
 		$this->minimum_weight	  = $this->get_option( 'minimum_weight' );
@@ -174,8 +175,14 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'default'     => 'no'
 			),
 			'services' => array(
-				'title'            => __( 'Тарифы' ),
+				'title'            => __( 'Настройка для СДЕК' ),
 				'type'             => 'title'
+			),
+			'contract_number'	=> array(
+				'title' 		=> __( 'Номер договора СДЕК' ),
+				'type' 			=> 'text',
+				'description'	=> __( 'Введите номер договора заключённый с компанией СДЕК.' ),
+				'desc_tip'      => true
 			),
 			'login' => array(
 				'title' 		=> __( 'API логин' ),
@@ -290,6 +297,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		echo '<h3>' . $this->method_title . '</h3>';
 		echo '<p>' . $this->method_description . '</p>';
 		echo '<table class="form-table">';
+		if( empty( $this->contract_number ) ) echo '<div class="updated woocommerce-message"><p>Необходимо ввести <strong>номер вашего договора</strong>!</p></div>';
 			$this->generate_settings_html();
 		echo '</table>';
 	}
