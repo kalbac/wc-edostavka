@@ -45,6 +45,10 @@ class WC_Edostavka {
 		
 		add_filter( 'pre_update_option_woocommerce_' . self::$method_id . '_settings', array( $this, 'check_shop_contract' ), 10, 2 );
 
+		add_filter( 'woocommerce_shipping_calculator_enable_postcode', array( $this, 'cart_shipping_calculator' ) );
+		add_action( 'woocommerce_before_cart_totals', array( $this, 'before_cart_totals' ) );
+
+
 		//Ajax
 		add_filter( 'woocommerce_update_order_review_fragments',  array( $this, 'ajax_update_delivery_points' ) );
 
@@ -71,6 +75,12 @@ class WC_Edostavka {
 		);
 
 		wp_register_script(
+			'cart-shipping-script',
+			plugins_url( '/assets/js/cart-shipping.js' , __FILE__ ),
+			array( 'jquery' )
+		);
+
+		wp_register_script(
 			'edostavka-yandex-map',
 			'https://api-maps.yandex.ru/2.1/?lang=ru_RU',
 			array( 'jquery' )
@@ -83,6 +93,13 @@ class WC_Edostavka {
 			plugins_url( '/assets/css/edostavka.css' , __FILE__ ),
 			array()
 		);
+
+		if( is_cart() ) {
+			wp_enqueue_style( 'wc-edostavka' );
+			wp_enqueue_style( 'jquery-ui-styles' );
+			wp_enqueue_script( 'jquery-ui-autocomplete' );
+			wp_enqueue_script( 'cart-shipping-script' );
+		}
 
 		if( is_checkout() ) {
 			wp_enqueue_style( 'wc-edostavka' );
@@ -389,6 +406,7 @@ class WC_Edostavka {
 		$params['chosen_shipping_method'] = self::get_chosen_shipping_method();
 		$params['geo_json_url']	= apply_filters( 'edostavka_cityes_json_url', is_ssl() ? add_query_arg( array( 'action' => 'get_city_list_by_term' ), admin_url( 'admin-ajax.php' ) ) : 'http://api.cdek.ru/city/getListByTerm/jsonp.php' );
 		$params['is_ssl']	= is_ssl();
+		$params['default_state_name']	= self::default_state_name_value( self::default_checkout_state() );
 		return $params;
 	}
 
@@ -403,7 +421,7 @@ class WC_Edostavka {
 		return $states_ru;
 	}
 
-	public function default_checkout_state( $value ){
+	public function default_checkout_state( $value = '' ){
 		if( $value == '' ) {
 			$value = WC()->customer->get_state() ? WC()->customer->get_state() : WC()->countries->get_base_state();
 		}
@@ -446,6 +464,21 @@ class WC_Edostavka {
 		}
 		
 		return $new;
+	}
+
+	public function cart_shipping_calculator( $enabled ) {
+		if( strpos( self::get_chosen_shipping_method(), self::get_method_id() ) === 0 ) {
+			$enabled = false;
+		}
+
+		return $enabled;
+	}
+
+	public function before_cart_totals() {
+		if ( isset( $_POST['shipping_state'] ) ) {
+			WC()->customer->set_state( $_POST['shipping_state'] );
+			WC()->customer->set_shipping_state( $_POST['shipping_state'] );
+		}
 	}
 
 }
