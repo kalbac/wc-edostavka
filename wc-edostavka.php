@@ -71,19 +71,25 @@ class WC_Edostavka {
 		wp_register_script(
 			'edostavka-script',
 			plugins_url( '/assets/js/edostavka.js' , __FILE__ ),
-			array( 'jquery' )
+			array( 'jquery' ),
+			self::VERSION,
+			true
 		);
 
 		wp_register_script(
 			'cart-shipping-script',
 			plugins_url( '/assets/js/cart-shipping.js' , __FILE__ ),
-			array( 'jquery' )
+			array( 'jquery' ),
+			self::VERSION,
+			true
 		);
 
 		wp_register_script(
 			'edostavka-yandex-map',
 			'https://api-maps.yandex.ru/2.1/?lang=ru_RU',
-			array( 'jquery' )
+			array( 'jquery', 'edostavka-script' ),
+			self::VERSION,
+			true
 		);
 
 		wp_register_style( 'jquery-ui-styles', '//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css' );
