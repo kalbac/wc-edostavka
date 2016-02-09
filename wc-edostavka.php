@@ -3,7 +3,7 @@
 Plugin Name: eDostavka Shipping Method
 Plugin URI: http://martirosoff.ru/
 Description: Плагин добавляет метод расчёта стоимости доставки через курьерскую службу <a href="http://www.edostavka.ru" target="_blank">СДЭК</a> в плагин WooCommerce.
-Version: 1.2.3
+Version: 1.2.4
 Author: Мартиросов Максим
 Author URI: http://martirosoff.ru
 */
@@ -16,7 +16,7 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 class WC_Edostavka {
 	
-	const VERSION = '1.2.3';
+	const VERSION = '1.2.4';
 	protected static $method_id = 'edostavka';
 	protected static $instance = null;
 
@@ -292,7 +292,7 @@ class WC_Edostavka {
 			),
 			'postcode' => array(
 				'label'       => __( 'Postcode / ZIP', 'woocommerce' ),
-				'required'    => true,
+				'required'    => false,
 				'class'       => array( 'form-row-last', 'address-field' ),
 				'clear'       => true,
 				'validate'    => array( 'postcode' )

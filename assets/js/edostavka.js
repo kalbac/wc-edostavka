@@ -110,7 +110,7 @@ jQuery(function($){
             if ( $('#billing_delivery_point option').length > 0 && $().select2 ) {
 				
                 delivery_point_select2();
-				delivery_points_map();
+				//delivery_points_map();
                 
 				$( 'body' ).bind( 'updated_checkout', function() {
                     $( '#billing_delivery_point_field' ).find( '.select2-container' ).remove();
