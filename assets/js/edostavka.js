@@ -34,9 +34,7 @@ jQuery(function($){
 
             } );
 
-            $( 'body' ).on( 'change updated_checkout', 'select.state_select', function( event ) {
-                $( 'body' ).trigger('update_checkout');
-            });
+
 
             var delivery_point_select2 = function() {
                 $( 'select#billing_delivery_point:visible' ).select2( {
@@ -107,70 +105,76 @@ jQuery(function($){
                 });
             };
 
-            if ( $('#billing_delivery_point option').length > 0 && $().select2 ) {
-				
-                delivery_point_select2();
-				//delivery_points_map();
-                
-				$( 'body' ).bind( 'updated_checkout', function() {
-                    $( '#billing_delivery_point_field' ).find( '.select2-container' ).remove();
-					$('div#edostavka_map').empty();
-                    delivery_point_select2();
-                    delivery_points_map();
-                });
-            }
+
 
             var load_autocomplate_states = function() {
-                $('#billing_state_name').each( function() {
-                    var _self = $(this);
 
-                    _self.autocomplete({
+                try {
+                    $('#billing_state').autocomplete({
                         source: function(request,response) {
                             $.ajax({
-                                url: woocommerce_params.geo_json_url,
+                                url: woocommerce_params.geo_json_url + '?callback=?',
                                 method: 'POST',
-                                dataType: woocommerce_params.is_ssl == 1 ? 'json' : "jsonp",
-								beforeSend: function( xhr ) {
-									_self.addClass( 'is_loading' );
-								},
+                                dataType: "jsonp",
+                                beforeSend: function( xhr ) {
+                                    $(this).addClass( 'is_loading' );
+                                    console.log(request.term);
+                                },
                                 data: {
-                                    q: function () { return _self.val(); },
-                                    name_startsWith: function () { return _self.val(); },
+                                    q: request.term,
+                                    name_startsWith: request.term,
                                     countryCodeList: function () { return [$('#billing_country').val()] }
                                 },
                                 success: function( data ) {
-									_self.toggleClass( 'is_loading', 'is_loaded' );
-                                    data = data.geonames ? data.geonames : data;
-                                    response( $.map ( data, function(item) {
-                                        if( item.countryCode && item.countryCode == $('#billing_country').val() ) {
+                                    $(this).toggleClass( 'is_loading', 'is_loaded' );
+
+                                    response( $.map ( data.geonames, function( item ) {
+                                        if( item && item.countryCode !== null && ( item.countryCode == $('#billing_country').val() || item.countryIso == $('#billing_country').val()) ) {
                                             return {
                                                 label: item.name,
-                                                value: item.name,
+                                                value: item.cityName,
                                                 id: item.id
                                             }
                                         }
 
                                     }));
+                                },
+                                error: function( err ) {
+                                    console.log( err );
                                 }
                             });
-							
+
                         },
                         minLength: 0,
                         select: function( event, ui ) {
                             $('#billing_city, #shippng_city').val( ui.item.value );
-                            $('#billing_state, #shippng_state').val( ui.item.id );
+                            $('#billing_state, #shippng_state').val( ui.item.name );
+                            $('#shipping_state_id').val( ui.item.id );
+
                             $( 'body' ).trigger('update_checkout');
                         }
-                    }).on('focus', function() {       
-							$( this ).autocomplete('search');
-					});
-					
-                });
+                    }).on('focus', function() {
+                        $( this ).autocomplete('search');
+                    });
+                } catch( error ) {
+                    console.log( error );
+                }
             };
 
-            load_autocomplate_states();
+            //load_autocomplate_states();
 
-            $( 'body' ).on('update_checkout', load_autocomplate_states() );
+            $( 'body' ).on('updated_checkout', function(){
+                if ( $('#billing_delivery_point option').length > 0 && $().select2 ) {
+
+                    $( '#billing_delivery_point_field' ).find( '.select2-container' ).remove();
+                    $('div#edostavka_map').empty();
+                    delivery_point_select2();
+                    delivery_points_map();
+
+                }
+
+                load_autocomplate_states();
+            } );
         }
     });
 
