@@ -12,7 +12,7 @@ jQuery(function($){
                     method = $( this ).val();
                 } );
 
-                if( method.indexOf('edostavka_') >= 0 ) {
+                if( method && method.indexOf('edostavka_') >= 0 ) {
                     //Если СДЕК
                     var tatiff_id = method.replace('edostavka_','');
 

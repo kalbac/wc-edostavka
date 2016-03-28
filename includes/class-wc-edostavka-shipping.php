@@ -351,7 +351,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$_package->set_minimum_length( $this->minimum_length );
 		$_package->set_minimum_weight( $this->minimum_weight );
 		$connect->set_city_origin( $city_origin );
-		$connect->set_city_destination( ! empty( $package['post_data']['shipping_state_id'] ) ? $package['post_data']['shipping_state_id'] : WC()->customer->get_default_state() );
+		$connect->set_city_destination( is_numeric( $state ) ? $state : WC_Edostavka::get_shipping_state_id_by_name( $state ) );
 		$connect->set_debug( $this->debug );
 		$connect->set_login( $this->login );
 		$connect->set_password( $this->password );
