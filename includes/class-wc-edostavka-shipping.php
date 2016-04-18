@@ -9,6 +9,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 	protected $show_notice;
 	protected $show_error;
 	protected $hide_standart_wc_city;
+	protected $disable_required_address;
 	protected $autoselect_edostavka_shipping_method;
 	protected $replace_shipping_label_door;
 	protected $replace_shipping_label_stock;
@@ -27,6 +28,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->display_date       = $this->get_option( 'display_date' );
 		$this->additional_time    = $this->get_option( 'additional_time' );
 		$this->fee                = $this->get_option( 'fee' );
+		$this->city_origin_name   = $this->get_option( 'city_origin_name' );
 		$this->city_origin        = $this->get_option( 'city_origin' );
 		$this->notice_text   	  = $this->get_option( 'notice_text' );
 		$this->error_text   	  = $this->get_option( 'error_text' );
@@ -34,6 +36,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->show_notice   	  = $this->get_option( 'show_notice' );
 		$this->enabled_in_cart    = $this->get_option( 'enabled_in_cart' );
 		$this->corporate_service  = $this->get_option( 'corporate_service' );
+		$this->disable_required_address = $this->get_option('disable_required_address');
 		$this->hide_standart_wc_city = $this->get_option('hide_standart_wc_city');
 		$this->autoselect_edostavka_shipping_method = $this->get_option('autoselect_edostavka_shipping_method');
 		$this->replace_shipping_label_door = $this->get_option( 'replace_shipping_label_door' );
@@ -101,14 +104,14 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'default' 		=> 'RU',
 				'options'		=> WC()->countries->get_allowed_countries()
 			),
-			'city_origin' => array(
+			'city_origin_name' => array(
 				'title' 		=> __( 'Город отправитель' ),
 				'description'	=> __( 'Укажите город откуда будут отправлять посылки.' ),
-				'desc_tip'      => true,
-				'class'			=> 'chosen_select',
-				'type' 			=> 'select',
-				'default'		=> WC()->countries->get_base_state(),
-				'options'		=> WC()->countries->get_states(WC()->countries->get_base_country())
+				'desc_tip'      => true
+			),
+			'city_origin' => array(
+				'title' 		=> __( 'ID Города отправитель' ),
+				'type' 			=> 'hidden'
 			),
 			'display_date' => array(
 				'title'            => __( 'Срок доставки' ),
@@ -171,6 +174,14 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				'description'	=> __( 'Напишите текст который будет отображатся на странице оформления заказа в случае если по указоному маршруту не найдено ни одного тарифа.' ),
 				'default'		=> __( 'Нет ни одного доступного тарифа в указанный город/область.' ),
 				'desc_tip'      => true
+			),
+			'disable_required_address' => array(
+				'title' 		=> __( 'Адрес не обязательный' ),
+				'description'       => __('Сделать поле "Адрес" не обязательным для заполнения если выбран другой метод доставки (не СДЕК) или выбран метод доставки до ПВЗ.'),
+				'type'        => 'checkbox',
+				'label'       => $this->disable_required_address == 'yes' ? __('Да') : __('Нет'),
+				'default'     => 'yes',
+				'desc_tip'    => true
 			),
 			'hide_standart_wc_city' => array(
 				'title'       => __('Скрыть стандартное поле ввода "Населенный пункт"'),
@@ -305,6 +316,17 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->generate_settings_html();
 		echo '</table>';
 	}
+	
+	public function generate_hidden_html( $key, $data ) {
+		$field    = $this->get_field_key( $key );
+		$defaults = array(
+			'type'              => 'hidden',
+		);
+
+		$data = wp_parse_args( $data, $defaults );
+		
+		printf('<input type="%s" name="%s" id="%s" value="%s" />', $data['type'], esc_attr( $field ), esc_attr( $field ), esc_attr( $this->get_option( $key ) ) );
+	}
 
 	private function fix_format( $value ) {
 		$value = str_replace( '.', '', $value );
@@ -339,10 +361,6 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 
 	protected function edostavka_calculate( $package ) {
 
-		$state = ( isset( $package['destination']['state'] ) && ! empty( $package['destination']['state'] ) ) ? $package['destination']['state'] : WC()->customer->get_state();
-
-		$city_origin = is_numeric( $this->city_origin ) ? $this->city_origin : WC_Edostavka::get_shipping_state_id_by_name( $this->city_origin );
-
 		$connect  = new WC_Edostavka_Connect();
 		$connect->set_services( $this->edostavka_services() );
 		$_package = $connect->set_package( $package );
@@ -350,11 +368,16 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$_package->set_minimum_width( $this->minimum_width );
 		$_package->set_minimum_length( $this->minimum_length );
 		$_package->set_minimum_weight( $this->minimum_weight );
-		$connect->set_city_origin( $city_origin );
-		$connect->set_city_destination( is_numeric( $state ) ? $state : WC_Edostavka::get_shipping_state_id_by_name( $state ) );
+		$connect->set_city_origin( $this->city_origin );		
 		$connect->set_debug( $this->debug );
 		$connect->set_login( $this->login );
 		$connect->set_password( $this->password );
+		
+		if( ! empty( $package['destination']['state_id'] ) && is_numeric( $package['destination']['state_id'] ) ) {
+			$connect->set_city_destination( $package['destination']['state_id'] );
+		} elseif ( 'yes' == $this->debug ) {
+			$this->log->add( 'edostavka', 'Не удалось получить данные о городе получателя.' );
+		}
 
 		if( isset( $package['post_data']['billing_date'] ) && ! empty( $package['post_data']['billing_date'] ) ) {
 			// Конвертируем дату доствки в нужный формат для СДЕК
@@ -371,7 +394,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		} else {
 
 			if ( 'yes' == $this->debug ) {
-				$this->log->add( 'edostavka', 'Корзина только с виртуальными продуктами.' );
+				$this->log->add( 'edostavka', 'Не удалось получить ни одного метода доставки.' );
 			}
 			return array();
 		}

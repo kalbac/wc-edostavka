@@ -23,7 +23,7 @@ class WC_Edostavka_Admin_Orders {
 	
 	public function metabox_content( $post ) {
 		$order = wc_get_order( $post );
-		$points = WC_Edostavka::get_delivery_points( $order->billing_state );
+		$points = WC_Edostavka::get_delivery_points( $order->billing_state_id );
 		$shipping_method = WC_Edostavka::get_order_shipping_method( $order );
 		$is_stock = WC_Edostavka::wc_edostavka_delivery_tariffs_type( str_replace( 'edostavka_', '', $shipping_method ) ) == 'stock' ? true : false;
 		$html = '<label for="delivery_point">Пункт выдачи</label><br />';

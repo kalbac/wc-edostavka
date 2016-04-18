@@ -99,7 +99,7 @@ class WC_Email_Edostavka_Points extends WC_Email {
 			'order'            => $this->object,
 			'email_heading'    => $this->get_heading(),
 			'message' 		   => $this->get_message(),
-			'points'		   => WC_Edostavka::get_delivery_points( $this->object->billing_state ),
+			'points'		   => WC_Edostavka::get_delivery_points( $this->object->billing_state_id ),
 			'sent_to_admin'    => false,
 			'plain_text'       => false
 		), '', $this->template_base );
@@ -112,7 +112,7 @@ class WC_Email_Edostavka_Points extends WC_Email {
 			'order'            => $this->object,
 			'email_heading'    => $this->get_heading(),
 			'message' 		   => $this->get_message(),
-			'points'		   => WC_Edostavka::get_delivery_points( $this->object->billing_state ),
+			'points'		   => WC_Edostavka::get_delivery_points( $this->object->billing_state_id ),
 			'sent_to_admin'    => false,
 			'plain_text'       => true
 		), '', $this->template_base );
