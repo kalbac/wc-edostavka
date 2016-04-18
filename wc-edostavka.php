@@ -89,7 +89,6 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 				array()
 			);
 
-
 			if( is_checkout() ) {
 				wp_enqueue_style( 'wc-edostavka' );
 				wp_enqueue_script( 'edostavka-yandex-map' );
