@@ -114,9 +114,8 @@ jQuery(function($){
 										  
 										},
 										processResults: function ( data ) {
-											this.xhr = false;
 											return {
-												results: $.map( data.geonames, function ( item ) {
+												results: $.map( data.geonames || {}, function ( item ) {
 													if( ! item || item.countryIso == null || item.countryIso !== $('#billing_country').val() ) return;
 													return {
 														id: item.name,
@@ -128,6 +127,18 @@ jQuery(function($){
 											};
 										},
 										cache: false
+									},
+									createSearchChoice: function( term, results ) {
+										if ( $( results ).filter( function() {
+												return this.text.localeCompare( term ) === 0;
+											}).length===0 ) {
+											return {
+												id:term,
+												text:term,
+												city_id:0,
+												city_name:term
+											};
+										}
 									},
 									formatSelection: function( data ) { 
 										return data.text; 
