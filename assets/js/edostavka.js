@@ -129,9 +129,7 @@ jQuery(function($){
 										cache: false
 									},
 									createSearchChoice: function( term, results ) {
-										if ( $( results ).filter( function() {
-												return this.text.localeCompare( term ) === 0;
-											}).length===0 ) {
+										if ( results.length===0 ) {
 											return {
 												id:term,
 												text:term,
