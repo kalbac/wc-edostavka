@@ -238,7 +238,8 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 			if ( $billing_state_id && class_exists( 'SimpleXmlElement' ) ) {
 				$args = array(
-					'cityid'	=> absint( $billing_state_id )
+					'cityid'	=> absint( $billing_state_id ),
+					'type'	=> 'ALL'
 				);
 
 				$url = add_query_arg( $args, 'http://gw.edostavka.ru:11443/pvzlist.php' );
