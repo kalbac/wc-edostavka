@@ -14,10 +14,13 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 	protected $replace_shipping_label_door;
 	protected $replace_shipping_label_stock;
 
-	public function __construct() {
+	public function __construct( $instance_id = 0 ) {
 		$this->id                 = WC_Edostavka::get_method_id();
+		$this->instance_id 		  = absint( $instance_id ); // Unique instance ID of the method
 		$this->method_title       = __( 'Edostavka' );
 		$this->method_description = __( 'Расчёт стоимости доставки СДЭК' );
+
+		$this->supports = array( 'shipping-zones', 'instance-settings', );
 
 		$this->init_form_fields();
 
@@ -54,7 +57,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$this->countries          = apply_filters('woocommerce_edostavka_countries', $this->get_option( 'countries' ) );
 		$this->availability		  = $this->get_option( 'availability' );
 
-		$this->availability       = 'specific';
+//		$this->availability       = 'specific';
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
 
@@ -71,13 +74,12 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 	}
 
 	public function init_form_fields() {
-
-		$this->form_fields = array(
+		$this->instance_form_fields = array(
 			'enabled' => array(
 				'title' 		=> __( 'Вкл/Выкл' ),
 				'type' 			=> 'checkbox',
 				'label' 		=> __( 'Включить метод доставки' ),
-				'default' 		=> 'no'
+				'default' 		=> 'yes'
 			),
 			'title' => array(
 				'title' 		=> __( 'Название метода доставки' ),
@@ -307,15 +309,16 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		);
 	}
 
-	public function admin_options() {
-
-		echo '<h3>' . $this->method_title . '</h3>';
-		echo '<p>' . $this->method_description . '</p>';
-		echo '<table class="form-table">';
-		if( empty( $this->contract_number ) ) echo '<div class="updated woocommerce-message"><p>Необходимо ввести <strong>номер вашего договора</strong>!</p></div>';
-		$this->generate_settings_html();
-		echo '</table>';
-	}
+//	TODO: Переопределение этого метода ломает страницу настройки. Необходимо переработать этот метод так, чтобы он не ломал ничего
+//	public function admin_options() {
+//
+//		echo '<h3>' . $this->method_title . '</h3>';
+//		echo '<p>' . $this->method_description . '</p>';
+//		echo '<table class="form-table">';
+//		if( empty( $this->contract_number ) ) echo '<div class="updated woocommerce-message"><p>Необходимо ввести <strong>номер вашего договора</strong>!</p></div>';
+//		$this->generate_settings_html();
+//		echo '</table>';
+//	}
 	
 	public function generate_hidden_html( $key, $data ) {
 		$field    = $this->get_field_key( $key );
@@ -438,9 +441,10 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				array_push(
 					$rates,
 					array(
-						'id'    => $this->id . '_' . $code,
+						'id'    => $this->id .  '_' . $code,
 						'label' => $label,
 						'cost'  => $cost + $fee,
+						'package'    => $package,
 					)
 				);
 				$chosen_method = $this->id . '_' . $code;
