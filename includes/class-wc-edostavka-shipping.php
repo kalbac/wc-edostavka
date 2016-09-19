@@ -22,6 +22,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 
 		$this->supports = array( 'shipping-zones', 'instance-settings' );
 
+
 		$this->init_form_fields();
 
 		$this->init_settings();
