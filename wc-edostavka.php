@@ -3,7 +3,7 @@
 Plugin Name: eDostavka Shipping Method
 Plugin URI: http://martirosoff.ru/
 Description: Плагин добавляет метод расчёта стоимости доставки через курьерскую службу <a href="http://www.edostavka.ru" target="_blank">СДЭК</a> в плагин WooCommerce.
-Version: 1.3.2
+Version: 1.3.6
 Author: Мартиросов Максим
 Author URI: http://martirosoff.ru
 */
@@ -16,7 +16,7 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 	class WC_Edostavka {
 
-		const VERSION = '1.3.2';
+		const VERSION = '1.3.6';
 		protected static $method_id = 'edostavka';
 		protected static $instance = null;
 
@@ -60,9 +60,9 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 		}
 
 		public function activate() {
-			if ( ! in_array('woocommerce/woocommerce.php', get_option('active_plugins') ) || ! defined( 'WC_VERSION' ) || ! version_compare( WC_VERSION, '2.3', '>=' ) ) {
+			if ( ! in_array('woocommerce/woocommerce.php', get_option('active_plugins') ) || ! defined( 'WC_VERSION' ) || ! version_compare( WC_VERSION, '2.6', '>=' ) ) {
 				deactivate_plugins( plugin_basename( __FILE__ ) );
-				wp_die( sprintf( __( 'Для работы плагина eDostavka нужно установить %s! не ниже 2.3 версии' ), '<a href="http://wordpress.org/extend/plugins/woocommerce/">WooCommerce</a>' ) );
+				wp_die( sprintf( __( 'Для работы плагина eDostavka нужно установить %s! не ниже 2.6 версии' ), '<a href="http://wordpress.org/extend/plugins/woocommerce/">WooCommerce</a>' ) );
 			}
 		}
 
@@ -162,7 +162,7 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 		}
 
 		public function add_method( $methods ) {
-			$methods[] = 'WC_Edostavka_Shipping_Method';
+			$methods[ $this->get_method_id() ] = 'WC_Edostavka_Shipping_Method';
 			return $methods;
 		}
 
@@ -238,7 +238,8 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 
 			if ( $billing_state_id && class_exists( 'SimpleXmlElement' ) ) {
 				$args = array(
-					'cityid'	=> absint( $billing_state_id )
+					'cityid'	=> absint( $billing_state_id ),
+					'type'	=> 'ALL'
 				);
 
 				$url = add_query_arg( $args, 'http://gw.edostavka.ru:11443/pvzlist.php' );
