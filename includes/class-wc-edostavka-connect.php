@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Edostavka_Connect {
 
 	private $version = "1.0";
-	private $_webservice = 'http://api.edostavka.ru/calculator/calculate_price_by_json.php';
+	private $_webservice = 'http://api.cdek.ru/calculator/calculate_price_by_json.php';
 
 	protected $services = array();
 	protected $package = array();

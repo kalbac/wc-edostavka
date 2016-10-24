@@ -5,26 +5,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 
-	protected $enabled_in_cart;
-	protected $show_notice;
-	protected $show_error;
-	protected $hide_standart_wc_city;
-	protected $disable_required_address;
-	protected $autoselect_edostavka_shipping_method;
-	protected $replace_shipping_label_door;
-	protected $replace_shipping_label_stock;
-
 	public function __construct( $instance_id = 0  ) {
 		$this->id                 = WC_Edostavka::get_method_id();
-		$this->instance_id 		  = absint( $instance_id ); // Unique instance ID of the method
+		$this->instance_id 		  = absint( $instance_id );
 		$this->method_title       = __( 'Edostavka' );
 		$this->method_description = __( 'Расчёт стоимости доставки СДЭК' );
 
-		$this->supports = array( 'shipping-zones', 'instance-settings' );
+		$this->supports              = array(
+			'shipping-zones',
+			'instance-settings'
+		);
 
+		$this->init();
 
+	}
+
+	public function init() {
 		$this->init_form_fields();
-
 		$this->init_settings();
 
 		$this->enabled            = $this->get_option( 'enabled' );
@@ -63,7 +60,6 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		if ( 'yes' == $this->debug ) {
 			$this->log = WC_Edostavka::logger();
 		}
-
 	}
 
 	protected function woocommerce_method() {
@@ -74,7 +70,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 
 	public function init_form_fields() {
 
-		$this->form_fields = array(
+		$this->instance_form_fields = array(
 			'enabled' => array(
 				'title' 		=> __( 'Вкл/Выкл' ),
 				'type' 			=> 'checkbox',
@@ -308,7 +304,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 			)
 		);
 	}
-	
+
 	public function generate_hidden_html( $key, $data ) {
 		$field    = $this->get_field_key( $key );
 		$defaults = array(
@@ -316,7 +312,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		);
 
 		$data = wp_parse_args( $data, $defaults );
-		
+
 		printf('<input type="%s" name="%s" id="%s" value="%s" />', $data['type'], esc_attr( $field ), esc_attr( $field ), esc_attr( $this->get_option( $key ) ) );
 	}
 
@@ -360,11 +356,11 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 		$_package->set_minimum_width( $this->minimum_width );
 		$_package->set_minimum_length( $this->minimum_length );
 		$_package->set_minimum_weight( $this->minimum_weight );
-		$connect->set_city_origin( $this->city_origin );		
+		$connect->set_city_origin( $this->city_origin );
 		$connect->set_debug( $this->debug );
 		$connect->set_login( $this->login );
 		$connect->set_password( $this->password );
-		
+
 		if( ! empty( $package['destination']['state_id'] ) && is_numeric( $package['destination']['state_id'] ) ) {
 			$connect->set_city_destination( $package['destination']['state_id'] );
 		} elseif ( 'yes' == $this->debug ) {
@@ -411,11 +407,11 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 				}
 
 				if ($this->replace_shipping_label_door === 'yes'
-				    && WC_Edostavka::wc_edostavka_delivery_tariffs_type($code) === 'door'
+					&& WC_Edostavka::wc_edostavka_delivery_tariffs_type($code) === 'door'
 				) {
 					$name = $this->shipping_label_door;
 				} elseif ($this->replace_shipping_label_stock === 'yes'
-				          && WC_Edostavka::wc_edostavka_delivery_tariffs_type($code) === 'stock'
+					&& WC_Edostavka::wc_edostavka_delivery_tariffs_type($code) === 'stock'
 				) {
 					$name = $this->shipping_label_stock;
 				} else {
@@ -441,7 +437,7 @@ class WC_Edostavka_Shipping_Method extends WC_Shipping_Method {
 
 			$rates = apply_filters( 'woocommerce_edostavka_shipping_methods', $rates, $package );
 			if ($this->autoselect_edostavka_shipping_method === 'yes'
-			    && $chosen_method !== null) {
+				&& $chosen_method !== null) {
 				WC()->session->set( 'chosen_shipping_methods', array($chosen_method) );
 			}
 
