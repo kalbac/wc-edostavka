@@ -5,7 +5,7 @@ jQuery(function($){
         if( typeof( wc_checkout_params ) !== "undefined" && wc_checkout_params.is_checkout == 1 ) {
 
             var delivery_point_select2 = function() {
-                $( 'select#billing_delivery_point:visible' ).select2( {
+                $( 'select#billing_delivery_point' ).select2( {
                     minimumResultsForSearch: 10,
                     placeholder: 'Выберите ПВЗ',
                     placeholderOption: 'first',
@@ -118,7 +118,7 @@ jQuery(function($){
 												results: $.map( data.geonames || {}, function ( item ) {
 													if( ! item || item.countryIso == null || item.countryIso !== $('#billing_country').val() ) return;
 													return {
-														id: item.name,
+														id: item.cityName,
 														city_id: item.id,
 														city_name: item.cityName,
 														text: item.name
@@ -223,17 +223,21 @@ jQuery(function($){
 
                 }
 				
-				var method = woocommerce_params.chosen_shipping_method;
+				var method = woocommerce_params.chosen_method;
 
                 $( 'select.shipping_method, input[name^=shipping_method][type=radio]:checked, input[name^=shipping_method][type=hidden]' ).each( function( index, input ) {
-                    method = $( this ).val();
+                    split_method = $( input ).val().split(':');
+					method.method = split_method[0];
+					if(split_method.length > 2 ) {
+						method.tariff = split_method[2]
+					}
                 } );
 
-                if( method && method.indexOf('edostavka_') >= 0 ) {
+				console.log( method );
+                if( method && method.method == 'edostavka' && method.tariff ) {
                     //Если СДЕК
-                    var tatiff_id = method.replace('edostavka_','');
 
-                    if( $.inArray( parseInt( tatiff_id ), woocommerce_params.is_door ) >= 0 ) {
+                    if( $.inArray( parseInt( method.tariff ), woocommerce_params.is_door ) >= 0 ) {
                         //Если СДЕК до двери
                         $( '#billing_delivery_point_field, #edostavka_map' ).hide().addClass('hidden');
                         $( '#billing_address_1_field, #billing_address_2_field').show().removeClass('hidden');

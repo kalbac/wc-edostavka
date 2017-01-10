@@ -3,92 +3,78 @@
 Plugin Name: eDostavka Shipping Method
 Plugin URI: http://woodev.ru/
 Description: Плагин добавляет метод расчёта стоимости доставки через курьерскую службу <a href="http://www.edostavka.ru" target="_blank">СДЭК</a> в плагин WooCommerce.
-Version: 1.3.7
+Version: 1.4.0
 Author: Мартиросов Максим
 Author URI: http://martirosoff.ru
 */
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( ! class_exists( 'WC_Edostavka' ) ) :
+/**
+ * Required functions
+ */
+if ( ! function_exists( 'is_woocommerce_active' ) ) {
+	require_once( 'woo-includes/woo-functions.php' );
+}
 
-	class WC_Edostavka {
+if ( is_woocommerce_active() ) {
 
-		const VERSION = '1.3.7';
+	class WC_Edostavka_Shipping {
+
+		const VERSION = '1.4.0';
 		protected static $method_id = 'edostavka';
-		protected static $instance = null;
 
-		/**
-		 *
-		 */
-		private function __construct() {
+		public function __construct() {
+			add_action( 'plugins_loaded', array( $this, 'init' ) );
+			register_activation_hook( __FILE__, array( $this, 'activate' ) );
+		}
 
-			register_activation_hook( __FILE__, array( $this , 'activate' ) );
+		public static function get_method_id() {
+			return apply_filters( 'woocommerce_edostavka_shipping_id', self::$method_id );
+		}
 
-			$this->includes();
-			if ( is_admin() ) {
-				$this->admin_includes();
+		public function woocommerce_shipping_methods( $shipping_methods ) {
+			$shipping_methods[ self::get_method_id() ] = 'WC_Edostavka_Shipping_Method';
+			return $shipping_methods;
+		}
+
+		public function init() {
+			include_once( 'includes/functions.php' );
+
+			if ( version_compare( WC_VERSION, '2.6.0', '>=' ) ) {
+				add_filter( 'woocommerce_shipping_methods', array( $this, 'woocommerce_shipping_methods' ) );
+			} else {
+				add_action( 'woocommerce_load_shipping_methods', array( $this, 'load_shipping_methods' ) );
 			}
 
-			add_filter( 'woocommerce_shipping_methods', array( $this, 'add_method' ) );
+			//Checkout filds action
 			add_filter( 'woocommerce_checkout_fields', array( $this, 'add_delivery_points_field'), 99 );
 			add_filter( 'woocommerce_default_address_fields', array( $this, 'default_address_fields'), 99 );
-			add_filter( 'woocommerce_country_locale_field_selectors', array( $this, 'add_city_id_field_selector') );
 			add_filter( 'woocommerce_form_field_hidden', array( $this, 'form_field_hidden' ), 10, 4 );
-
 			add_action( 'woocommerce_after_checkout_billing_form', array( $this, 'delivery_points_map') );
 			add_action( 'woocommerce_checkout_process', array( $this, 'delivery_point_field_process' ) );
 			add_action( 'woocommerce_checkout_update_order_review', array( $this, 'update_order_review' ) );
+			add_filter( 'woocommerce_update_order_review_fragments',  array( $this, 'ajax_update_delivery_points' ) );
 
+			//Additional action
 			add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'checkout_field_update_order_meta' ) );
 			add_action( 'woocommerce_email_order_meta', array( $this, 'email_order_meta' ), 99 );
 			add_filter( 'default_checkout_state', array( $this, 'default_checkout_state' ) );
-
-			add_filter( 'pre_update_option_woocommerce_' . self::$method_id . '_settings', array( $this, 'check_shop_contract' ), 10, 2 );
-
 			add_filter( 'woocommerce_cart_shipping_packages', array( $this, 'shipping_packages' ), 10 );
 
-			//Ajax
-			add_filter( 'woocommerce_update_order_review_fragments',  array( $this, 'ajax_update_delivery_points' ) );
-
-			add_filter( 'woocommerce_params', array( $this, 'is_door_params' ) );
-
-			add_action( 'wp_enqueue_scripts', array( $this, 'load_script' ) );
-			add_action( 'admin_enqueue_scripts', array( $this, 'admin_load_script' ) );
+			//JS scripts actions
+			add_filter( 'woocommerce_params', array( $this, 'woocommerce_params' ) );
+			add_action( 'wp_enqueue_scripts', array( $this, 'edostavka_scripts' ) );
+			add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
+			add_action( 'woocommerce_shipping_init', array( $this, 'shipping_init' ) );
 		}
 
-		public function activate() {
-			if ( ! in_array('woocommerce/woocommerce.php', get_option('active_plugins') ) || ! defined( 'WC_VERSION' ) || ! version_compare( WC_VERSION, '2.6', '>=' ) ) {
-				deactivate_plugins( plugin_basename( __FILE__ ) );
-				wp_die( sprintf( __( 'Для работы плагина eDostavka нужно установить %s! не ниже 2.6 версии' ), '<a href="http://wordpress.org/extend/plugins/woocommerce/">WooCommerce</a>' ) );
-			}
-		}
+		public function edostavka_scripts() {
 
-		public function load_script() {
-			wp_register_script(
-				'edostavka-script',
-				plugins_url( '/assets/js/edostavka.js' , __FILE__ ),
-				array( 'jquery' ),
-				self::VERSION,
-				true
-			);
-
-			wp_register_script(
-				'edostavka-yandex-map',
-				'https://api-maps.yandex.ru/2.1/?lang=ru_RU',
-				array( 'jquery', 'edostavka-script' ),
-				self::VERSION,
-				true
-			);
-
-			wp_register_style(
-				'wc-edostavka',
-				plugins_url( '/assets/css/edostavka.css' , __FILE__ ),
-				array()
-			);
-
+			wp_register_script( 'edostavka-script', plugins_url( '/assets/js/edostavka.js' , __FILE__ ), array( 'jquery' ), self::VERSION, true );
+			wp_register_script( 'edostavka-yandex-map', 'https://api-maps.yandex.ru/2.1/?lang=ru_RU', array( 'jquery', 'edostavka-script' ), '2.1', true );
+			wp_register_style( 'wc-edostavka', plugins_url( '/assets/css/edostavka.css' , __FILE__ ), array() );
 
 			if( is_checkout() ) {
 				wp_enqueue_style( 'wc-edostavka' );
@@ -97,116 +83,50 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 			}
 		}
 
-		public function admin_load_script( $hook ) {
-			if( $hook !== 'woocommerce_page_wc-settings' ) return;
-
-			wp_enqueue_script(
-				'edostavka-admin',
-				plugins_url( '/assets/js/admin.js' , __FILE__ ),
-				array( 'jquery' ),
-				self::VERSION,
-				true
-			);
-
-			wp_localize_script(
-				'edostavka-admin',
-				'wc_params',
+		public function woocommerce_params( $params ) {
+			return array_merge(
+				$params,
 				array(
-					'default_country'	=> WC_Countries::get_base_country(),
-					'api_url'			=> $this->get_api_url()
+					'default_country'			=> WC_Countries::get_base_country(),
+					'geo_json_url'				=> $this->get_api_url(),
+					'is_door' 					=> array_values( wc_edostavka_get_delivery_tariff_type( 'door' ) ),
+					'default_state_name' 		=> WC()->customer->get_state(),
+					'chosen_method'				=> wc_edostavka_get_chosen_shipping_method()
 				)
 			);
-
 		}
 
-		public static function get_instance() {
-			if ( null == self::$instance ) {
-				self::$instance = new self;
+		public function admin_enqueue_scripts( $hook ) {
+
+			wp_register_script( 'edostavka-admin', plugins_url( '/assets/js/admin.js', __FILE__ ), array( 'jquery' ), self::VERSION, true );
+			wp_localize_script( 'edostavka-admin', 'wc_params', array(
+				'default_country' => WC_Countries::get_base_country(),
+				'api_url'         => $this->get_api_url()
+			) );
+
+			if( 'woocommerce_page_wc-settings' == $hook ) {
+				wp_enqueue_script( 'edostavka-admin' );
 			}
-			return self::$instance;
+
 		}
 
-		public static function get_method_id() {
-			return self::$method_id;
+		public function get_api_url() {
+			return apply_filters( 'edostavka_cityes_json_url', esc_url( '//api.cdek.ru/city/getListByTerm/jsonp.php' ) );
 		}
 
-		public static function get_chosen_shipping_method(){
-			$chosen_methods = WC()->session->get( 'chosen_shipping_methods' );
-			return $chosen_methods[0];
+		public function shipping_init() {
+			include_once( 'includes/class-wc-shipping-edostavka.php' );
 		}
 
-		public static function get_order_shipping_method( $order ){
-			$shipping_methods = $order->get_shipping_methods();
-			$shipping_method = '';
-			foreach ( $shipping_methods as $shipping_method ) {
-				$shipping_method= $shipping_method['method_id'];
-			}
-			return $shipping_method;
-		}
+		public function load_shipping_methods( $package ) {
+			woocommerce_register_shipping_method( 'WC_Edostavka_Shipping_Method' );
 
-		public static function get_templates_path() {
-			return plugin_dir_path( __FILE__ ) . 'templates/';
-		}
+			if ( ! $package ) return;
 
+			$zone = woocommerce_get_shipping_zone( $package );
 
-		private function includes() {
-			include_once 'includes/class-wc-edostavka-error.php';
-			include_once 'includes/class-wc-edostavka-package.php';
-			include_once 'includes/class-wc-edostavka-connect.php';
-			include_once 'includes/class-wc-edostavka-shipping.php';
-			include_once 'includes/class-wc-edostavka-emails.php';
-		}
-
-		private function admin_includes() {
-			include_once 'includes/admin/class-wc-edostavka-admin-orders.php';
-		}
-
-		public function add_method( $methods ) {
-			$methods[ $this->get_method_id() ] = 'WC_Edostavka_Shipping_Method';
-			return $methods;
-		}
-
-		public static function logger() {
-			if ( class_exists( 'WC_Logger' ) ) {
-				return new WC_Logger();
-			}
-		}
-
-		public static function wc_edostavka_delivery_tariffs() {
-			return array(
-				1   => __( 'Экспресс лайт дверь-дверь' ),
-				3   => __( 'Супер-экспресс до 18' ),
-				5   => __( 'Экономичный экспресс склад-склад' ),
-				10  => __( 'Экспресс лайт склад-склад' ),
-				11  => __( 'Экспресс лайт склад-дверь' ),
-				12  => __( 'Экспресс лайт дверь-склад' ),
-				15  => __( 'Экспресс тяжеловесы склад-склад' ),
-				16  => __( 'Экспресс тяжеловесы склад-дверь' ),
-				17  => __( 'Экспресс тяжеловесы дверь-склад' ),
-				18  => __( 'Экспресс тяжеловесы дверь-дверь' ),
-				57  => __( 'Супер-экспресс до 9' ),
-				58  => __( 'Супер-экспресс до 10' ),
-				59  => __( 'Супер-экспресс до 12' ),
-				60  => __( 'Супер-экспресс до 14' ),
-				61  => __( 'Супер-экспресс до 16' ),
-				62  => __( 'Магистральный экспресс склад-склад' ),
-				63  => __( 'Магистральный супер-экспресс склад-склад' ),
-				136 => __( 'Посылка склад-склад' ),
-				137 => __( 'Посылка склад-дверь' ),
-				138 => __( 'Посылка дверь-склад' ),
-				139 => __( 'Посылка дверь-дверь' ),
-				233 => __( 'Экономичная посылка склад-дверь' ),
-				234 => __( 'Экономичная посылка склад-склад' ),
-				301 => __( 'До постомата InPost дверь-склад' ),
-				302 => __( 'До постомата InPost склад-склад' )
-			);
-		}
-
-		public static function wc_edostavka_delivery_tariffs_type( $type ) {
-			if( in_array( $type, array( 1, 3, 11, 16, 18, 57, 58, 59, 60, 61, 137, 139, 233 ) ) ) {
-				return 'door';
-			} else {
-				return 'stock';
+			if ( $zone->exists() ) {
+				$zone->register_shipping_methods();
 			}
 		}
 
@@ -237,16 +157,31 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 			$przlist = array();
 
 			if ( $billing_state_id && class_exists( 'SimpleXmlElement' ) ) {
+
+				$chosen_shipping_method = wc_edostavka_get_chosen_shipping_method();
+
+				switch( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ) ) {
+					case 'postomat' :
+						$type = 'POSTOMAT';
+						break;
+					case 'stock' :
+						$type = 'PVZ';
+						break;
+					default:
+						$type = 'ALL';
+						break;
+				}
+
 				$args = array(
 					'cityid'	=> absint( $billing_state_id ),
-					'type'	=> 'ALL'
+					'type'	=>  $type
 				);
 
-				$url = add_query_arg( $args, 'http://gw.edostavka.ru:11443/pvzlist.php' );
+				$url = add_query_arg( $args, 'https://int.cdek.ru/pvzlist.php' );
 
-				$response = wp_remote_get( $url, array( 'sslverify' => false, 'timeout' => 30 ) );
+				$response = wp_safe_remote_get( $url, array( 'sslverify' => false, 'timeout' => 10 ) );
 
-				if ( ! is_wp_error( $response ) && $response['response']['code'] >= 200 && $response['response']['code'] < 300 ) {
+				if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) == 200 ) {
 
 					$result = self::XML2array( wp_remote_retrieve_body( $response ) );
 
@@ -262,13 +197,16 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 				}
 			}
 
+			wc_edostavka_add_log( sprintf('Пункты выдачи заказов: %s', print_r( $przlist, true ) ) );
+
 			return $przlist;
 		}
 
-
 		public function add_delivery_points_field( $checkout_fields ){
 
-			$delivery_points = self::get_delivery_points( WC()->customer->state_id );
+			$state_default = wc_edostavka_get_customer_state_id();
+
+			$delivery_points = self::get_delivery_points( $state_default );
 
 			if( sizeof( $delivery_points ) > 0 ) {
 				$points = array( 0 => __('Выберите пункт выдачи') );
@@ -281,16 +219,19 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 				$checkout_fields['billing']['billing_delivery_point']['options'] = $points;
 			}
 
+			$checkout_fields['billing']['billing_state_id']['default'] = $state_default;
+
 			return $checkout_fields;
 		}
 
 		public function default_address_fields( $fields ) {
 
-			$settings = get_option( 'woocommerce_' . self::$method_id . '_settings' );
-			$state_default = ! empty( WC()->customer->state_id ) ? WC()->customer->state_id : $settings['city_origin'];
-
 			unset( $fields['postcode'] );
 			unset( $fields['address_1'] );
+			unset( $fields['address_2'] );
+
+			$chosen_shipping_method = wc_edostavka_get_chosen_shipping_method();
+			$is_stock = in_array( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ), array( 'postomat', 'stock' ) );
 
 			$fields = array_merge( $fields, array(
 				'postcode' => array(
@@ -298,12 +239,13 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 					'required'    => false,
 					'class'       => array( 'form-row-last', 'address-field' ),
 					'clear'       => true,
-					'validate'    => array( 'postcode' )
+					'validate'    => array( 'postcode' ),
+					'autocomplete' => 'postal-code'
 				),
 				'address_1' => array(
 					'label'       => __( 'Address', 'woocommerce' ),
 					'placeholder' => _x( 'Street address', 'placeholder', 'woocommerce' ),
-					'required'    => ( ! empty( $settings['disable_required_address'] ) && $settings['disable_required_address'] === 'yes' && self::is_stock_tariff() ) ? false : true,
+					'required'    => $is_stock === false,
 					'class'       => array( 'form-row-wide', 'address-field' )
 				),
 				'address_2' => array(
@@ -314,18 +256,17 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 				'delivery_point'	=> array(
 					'label'     => __('Пункт выдачи заказов'),
 					'required'  => false,
-					'class'     => array('form-row-wide', strpos( self::get_chosen_shipping_method(), self::get_method_id() ) === 0 ? '' : 'hidden' ),
+					'class'     => array('form-row-wide', $is_stock ? '' : 'hidden' ),
 					'clear'		=> true
 				),
-				'state_id' => array(
+				'state_id'	=> array(
 					'label'       => __( 'ID города' ),
 					'type'		  => 'hidden',
-					'required'    => false,
-					'default'	  => $state_default
+					'required'    => false
 				)
 			) );
 
-			if( ! empty( $settings['hide_standart_wc_city'] ) && $settings['hide_standart_wc_city'] === 'yes' ) {
+			if( wc_edostavka_get_option( 'hide_city' ) === 'yes' ) {
 				$fields['city']['class'] = array( 'hidden' );
 				$fields['city']['required'] = false;
 			}
@@ -333,29 +274,26 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 			return $fields;
 		}
 
-		public function add_city_id_field_selector( $locale_fields ) {
-			$locale_fields['state_id'] = '#billing_state_id_field, #shipping_state_id_field';
-			return $locale_fields;
-		}
-
 		public function form_field_hidden( $field, $key, $args, $value ) {
-
-			$field = sprintf('<input type="hidden" name="%s" id="%s" value="%s" />', esc_attr( $key ), esc_attr( $key ), esc_attr( $value ) );
-
-			return $field;
+			if ( is_null( $value ) ) {
+				$value = $args['default'];
+			}
+			return sprintf('<input type="hidden" name="%1$s" id="%1$s" value="%2$s" />', esc_attr( $key ), $value );
 		}
 
-		public function is_stock_tariff() {
-			return self::wc_edostavka_delivery_tariffs_type( str_replace( self::get_method_id() . '_', '', self::get_chosen_shipping_method() ) ) == 'stock';
+		public function delivery_points_map( $checkout ) {
+			echo '<div id="edostavka_map" class="hidden"></div>';
 		}
 
 		public function delivery_point_field_process() {
 
-			if ( strpos( self::get_chosen_shipping_method(), self::get_method_id() ) === 0 ) {
+			$chosen_shipping_method = wc_edostavka_get_chosen_shipping_method();
+
+			if ( $chosen_shipping_method['method'] == self::get_method_id() ) {
 
 				$delivery_point = ( ! isset( $_POST['billing_delivery_point'] ) || empty( $_POST['billing_delivery_point'] ) ) ? true : false;
 
-				if ( absint( WC()->customer->state_id ) > 0 && self::is_stock_tariff() && $delivery_point ) {
+				if ( in_array( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ), array( 'postomat', 'stock' ) ) && $delivery_point ) {
 					wc_add_notice(__('Вы выбрали метод доставки СДЕК. Для оформления данного типа доставки необходимо выбрать пункт выдачи заказов.'), 'error');
 				}
 			}
@@ -386,13 +324,15 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 		}
 
 		public function checkout_field_update_order_meta( $order_id ){
-			if ( ! empty( $_POST['billing_delivery_point'] ) ) {
-				$state_id = get_post_meta( $order_id, 'state_id', true );
+			if ( ! empty( $_POST['billing_delivery_point'] ) && ! empty( $_POST['billing_state_id'] ) ) {
+				$state_id = absint( $_POST['billing_state_id'] );
+				$order = wc_get_order( $order_id );
 				$delivery_point = esc_attr( $_POST['billing_delivery_point'] );
 				if( $state_id ) {
 					$delivery_points = self::get_delivery_points( $state_id );
 					if( isset( $delivery_points[ $delivery_point ] ) ) {
 						update_post_meta( $order_id, 'delivery_point_name', $delivery_points[ $delivery_point ]['Address'] );
+						$order->set_address( array( 'address_1' => $delivery_points[ $delivery_point ]['Address'] ), 'shipping' );
 					}
 				}
 				update_post_meta( $order_id, '_delivery_point', $delivery_point );
@@ -420,13 +360,22 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 			}
 		}
 
+		public static function get_order_shipping_method( $order ){
+			$shipping_methods = $order->get_shipping_methods();
+			$shipping_method = '';
+			foreach ( $shipping_methods as $shipping_method ) {
+				$shipping_method= $shipping_method['method_id'];
+			}
+			return $shipping_method;
+		}
+
 		public function ajax_update_delivery_points( $fragments ){
 
 			$html_billing_delivery_point = '<input type="text" class="hidden" value="0" name="billing_delivery_point" id="billing_delivery_point" />';
 
 			$html_billing_delivery_points_map = '<div id="edostavka_map" class="hidden"></div>';
 
-			$delivery_points = self::get_delivery_points( WC()->customer->state_id );
+			$delivery_points = self::get_delivery_points( wc_edostavka_get_customer_state_id() );
 			if( sizeof( $delivery_points ) > 0 ) {
 				$html_billing_delivery_point = '<select name="billing_delivery_point" id="billing_delivery_point">';
 				$html_billing_delivery_point .= '<option value="">Выберите пункт выдачи</option>';
@@ -435,57 +384,28 @@ if ( ! class_exists( 'WC_Edostavka' ) ) :
 				}
 				$html_billing_delivery_point .= '</select>';
 
-				$html_billing_delivery_points_map = sprintf( "<div id='edostavka_map' data-state-name='%s' data-state-id='%s' data-points='%s'></div>", WC()->customer->get_state(), WC()->customer->state_id, json_encode( $delivery_points ) );
+				$html_billing_delivery_points_map = sprintf( "<div id='edostavka_map' data-state-name='%s' data-state-id='%s' data-points='%s'></div>", WC()->customer->get_state(), wc_edostavka_get_customer_state_id(), json_encode( $delivery_points ) );
 			}
 			$fragments['#billing_delivery_point'] = $html_billing_delivery_point;
 			$fragments['#edostavka_map'] = $html_billing_delivery_points_map;
 			return $fragments;
 		}
 
-		public function delivery_points_map( $checkout ) {
-			echo '<div id="edostavka_map" class="hidden"></div>';
-		}
-
-		public function get_api_url() {
-			return apply_filters( 'edostavka_cityes_json_url', esc_url_raw( '//api.cdek.ru/city/getListByTerm/jsonp.php' ) );
-		}
-
-		public function is_door_params( $params ) {
-			$params['is_door'] = array( 1, 3, 11, 16, 18, 57, 58, 59, 60, 61, 137, 139, 233 );
-			$params['chosen_shipping_method'] = self::get_chosen_shipping_method();
-			$params['geo_json_url']	= $this->get_api_url();
-			$params['default_state_name'] = WC()->customer->get_state();
-			return $params;
-		}
-
 		public function default_checkout_state( $value = '' ){
+			$state = WC()->customer->get_state();
 			if( $value == '' || is_numeric( $value ) ) {
-				$settings = get_option( 'woocommerce_' . self::$method_id . '_settings' );
-				$value = WC()->customer->get_state() ? WC()->customer->get_state() : $settings['city_origin_name'];
+				$value = ( $state && ! is_numeric( $state ) ) ? $state : wc_edostavka_get_option('city_origin_name');
 			}
 			return $value;
 		}
 
-		public function check_shop_contract( $new, $old ) {
-
-			$sended = get_option( 'woocommerce_sdek_contract_number_send' );
-
-			$contract_number = ! empty( $new['contract_number'] ) ? esc_attr( trim( $new['contract_number'] ) ) : null;
-
-			if( empty( $sended ) || ( ! is_null( $contract_number ) && $sended !== $contract_number ) ) {
-
-				if( ! is_null( $contract_number ) && $contract_number !== $old['contract_number'] ) {
-					$message = sprintf('<p>Плагин "<a href="%s" target="_blank">WC eDostavka</a>" был установлен на сайт <a href="%s">%s</a>.</p><p><a href="mailto:%s">Администратор</a> указал в настройках договор %s</p>', 'https://github.com/kalbac/wc-edostavka', site_url(), get_option( 'blogname' ), get_option( 'admin_email' ), $contract_number );
-
-					if( wc_mail( 'v.annenkova@cdek.ru', 'Активация плагина WC eDostavka', $message ) )
-						update_option( 'woocommerce_sdek_contract_number_send', $contract_number );
-				}
-			}
-
-			return $new;
+		public function activate() {
+			$mailer = WC()->mailer();
+			$message = $mailer->wrap_message( 'Плагин установлен', sprintf('<p>Плагин WC eDostavka был установлен на <a href="%s">сайте</a></p>', site_url('/') ) );
+			$mailer->send( 'maksim@martirosoff.ru', 'Установка плагина WC eDostavka', $message );
 		}
 
 	}
-	add_action( 'plugins_loaded', array( 'WC_Edostavka', 'get_instance' ), 0 );
 
-endif;
+	new WC_Edostavka_Shipping();
+}
