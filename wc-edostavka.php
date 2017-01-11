@@ -160,7 +160,7 @@ if ( is_woocommerce_active() ) {
 
 				$chosen_shipping_method = wc_edostavka_get_chosen_shipping_method();
 
-				switch( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ) ) {
+				switch (wc_edostavka_get_delivery_tariff_type(absint($chosen_shipping_method['tariff']))) {
 					case 'postomat' :
 						$type = 'POSTOMAT';
 						break;
@@ -173,31 +173,32 @@ if ( is_woocommerce_active() ) {
 				}
 
 				$args = array(
-					'cityid'	=> absint( $billing_state_id ),
-					'type'	=>  $type
+					'cityid' => absint($billing_state_id),
+					'type' => $type
 				);
 
-				$url = add_query_arg( $args, 'https://int.cdek.ru/pvzlist.php' );
+				$url = add_query_arg($args, 'https://int.cdek.ru/pvzlist.php');
 
-				$response = wp_safe_remote_get( $url, array( 'sslverify' => false, 'timeout' => 10 ) );
+				$response = wp_safe_remote_get($url, array('sslverify' => false, 'timeout' => 10));
 
-				if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) == 200 ) {
+				if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) == 200) {
 
-					$result = self::XML2array( wp_remote_retrieve_body( $response ) );
+					$result = self::XML2array(wp_remote_retrieve_body($response));
 
-					if( isset( $result[ 'Pvz' ] ) ) {
-						if( sizeof( $result[ 'Pvz' ] ) > 1 ) {
-							foreach( $result[ 'Pvz' ] as $pvz ) {
-								$przlist[$pvz['@attributes']['Code']] = $pvz['@attributes'];
+					if (isset($result['Pvz']) && sizeof($result['Pvz']) > 0) {
+						foreach ($result['Pvz'] as $pvz) {
+							if (!empty($pvz['@attributes'])) {
+								if (isset($pvz['@attributes']['Code'])) {
+									$przlist[$pvz['@attributes']['Code']] = $pvz['@attributes'];
+								}
+							} elseif ($pvz['Code']) {
+								$przlist[$pvz['Code']] = $pvz;
 							}
-						} else {
-							$przlist[$result[ 'Pvz' ]['@attributes']['Code']] = $result[ 'Pvz' ]['@attributes'];
+
 						}
 					}
 				}
 			}
-
-			wc_edostavka_add_log( sprintf('Пункты выдачи заказов: %s', print_r( $przlist, true ) ) );
 
 			return $przlist;
 		}
