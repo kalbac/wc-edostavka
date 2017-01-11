@@ -1,7 +1,6 @@
-theme:
 title: [Плагин СДЭК для wordpress woocommerce]
 description: [Калькулятор стоимости доставки курьерской службой СДЭК]
 show_downloads: ["true"]
 google_analytics: [UA-21586186-3]
 
-theme: jekyll-theme-cayman
+theme: jekyll-theme-custom
