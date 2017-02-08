@@ -79,7 +79,7 @@ function wc_edostavka_get_delivery_tariff_name( $tariff_id = 0 ) {
 
 /*
 * Функция возвращает либо тип тарифного плана либо айдишники тарифов в зависимости от переданного аргумента.
-* В случае есть передать в качестве аргумента айдишник тарифа, то функция вернет тип тарифа 'door', 'stock' или 'postomat'.
+* В случае есть передать в качестве аргумента айдишник тарифа, то функция вернет тип тарифа 'door', 'stock'.
 * Если передать в качестве аргумента тип тарифа (см.выше) то вернётся массив содержащий айдишники всех тарифов подходящие под этот тип.
 * В противном случае (не верный аргумент) вернётся булево false.
 */
@@ -94,7 +94,7 @@ function wc_edostavka_get_delivery_tariff_type( $num_or_type = 0 ) {
 				return $type['type'];
 			}
 		}
-	} elseif( in_array( $num_or_type, array( 'door', 'stock', 'postomat' ) ) ) {
+	} elseif( in_array( $num_or_type, array( 'door', 'stock' ) ) ) {
 		return wp_list_pluck( wp_list_filter( $tariffs, array( 'type' => $num_or_type ) ), 'id' );
 	}
 	return false;

@@ -161,9 +161,6 @@ if ( is_woocommerce_active() ) {
 				$chosen_shipping_method = wc_edostavka_get_chosen_shipping_method();
 
 				switch (wc_edostavka_get_delivery_tariff_type(absint($chosen_shipping_method['tariff']))) {
-					case 'postomat' :
-						$type = 'POSTOMAT';
-						break;
 					case 'stock' :
 						$type = 'PVZ';
 						break;
@@ -232,7 +229,7 @@ if ( is_woocommerce_active() ) {
 			unset( $fields['address_2'] );
 
 			$chosen_shipping_method = wc_edostavka_get_chosen_shipping_method();
-			$is_stock = in_array( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ), array( 'postomat', 'stock' ) );
+			$is_stock = in_array( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ), array( 'stock' ) );
 
 			$fields = array_merge( $fields, array(
 				'postcode' => array(
@@ -294,7 +291,7 @@ if ( is_woocommerce_active() ) {
 
 				$delivery_point = ( ! isset( $_POST['billing_delivery_point'] ) || empty( $_POST['billing_delivery_point'] ) ) ? true : false;
 
-				if ( in_array( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ), array( 'postomat', 'stock' ) ) && $delivery_point ) {
+				if ( in_array( wc_edostavka_get_delivery_tariff_type( absint( $chosen_shipping_method['tariff'] ) ), array( 'stock' ) ) && $delivery_point ) {
 					wc_add_notice(__('Вы выбрали метод доставки СДЕК. Для оформления данного типа доставки необходимо выбрать пункт выдачи заказов.'), 'error');
 				}
 			}
