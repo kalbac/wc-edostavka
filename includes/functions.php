@@ -16,7 +16,7 @@ function wc_edostavka_get_chosen_shipping_method() {
 	} elseif( count( $chosen_method ) == 2 ) {
 		list( $method, $instance ) = $chosen_method;
 	}
-	
+
 	return array(
 		'method'	=> $method,
 		'instance'	=> $instance,
@@ -41,7 +41,7 @@ function wc_edostavka_get_option( $option_name, $default = null ) {
 	if( $option_name && isset( $settings[ $option_name ] ) ) {
 		return $settings[ $option_name ];
 	}
-	
+
 	return $default;
 }
 
@@ -73,7 +73,7 @@ function wc_edostavka_get_delivery_tariff_name( $tariff_id = 0 ) {
 	if( ! empty( $tariff['label'] ) ) {
 		return apply_filters( 'edostavka_delivery_tariff_name', $tariff['label'], $tariff_id );
 	}
-	
+
 	return 'Тариф без названия';
 }
 
@@ -120,6 +120,16 @@ function wc_edostavka_get_delivery_tariffs() {
 			'id'	=> 5,
 			'label'	=> 'Экономичный экспресс склад-склад',
 			'type'	=> 'stock'
+		),
+		array(
+			'id'	=> 7,
+			'label'	=> 'Международный экспресс документы дверь-дверь',
+			'type'	=> 'door'
+		),
+		array(
+			'id'	=> 8,
+			'label'	=> 'Международный экспресс грузы дверь-дверь',
+			'type'	=> 'door'
 		),
 		array(
 			'id'	=> 10,
@@ -212,6 +222,26 @@ function wc_edostavka_get_delivery_tariffs() {
 			'type'	=> 'door'
 		),
 		array(
+			'id'	=> 180,
+			'label'	=> 'Международный экспресс грузы дверь-склад',
+			'type'	=> 'stock'
+		),
+		array(
+			'id'	=> 183,
+			'label'	=> 'Международный экспресс документы дверь-склад',
+			'type'	=> 'stock'
+		),
+		array(
+			'id'	=> 184,
+			'label'	=> 'Международный экономичный экспресс дверь-дверь',
+			'type'	=> 'door'
+		),
+		array(
+			'id'	=> 185,
+			'label'	=> 'Международный экономичный экспресс дверь-склад',
+			'type'	=> 'stock'
+		),
+		array(
 			'id'	=> 233,
 			'label'	=> 'Экономичная посылка склад-дверь',
 			'type'	=> 'door'
@@ -260,16 +290,6 @@ function wc_edostavka_get_delivery_tariffs() {
 			'id'	=> 247,
 			'label'	=> 'Китайский экспресс дверь-склад',
 			'type'	=> 'stock'
-		),
-		array(
-			'id'	=> 301,
-			'label'	=> 'До постомата InPost дверь-склад',
-			'type'	=> 'postomat'
-		),
-		array(
-			'id'	=> 302,
-			'label'	=> 'До постомата InPost склад-склад',
-			'type'	=> 'postomat'
-		)		
+		)
 	));
 }
