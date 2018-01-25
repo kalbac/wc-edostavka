@@ -84,23 +84,24 @@ if ( is_woocommerce_active() ) {
 		}
 
 		public function woocommerce_params( $params ) {
+			$countries = new WC_Countries();
 			return array_merge(
 				$params,
 				array(
-					'default_country'			=> WC_Countries::get_base_country(),
+					'default_country'			=> $countries->get_base_country(),
 					'geo_json_url'				=> $this->get_api_url(),
 					'is_door' 					=> array_values( wc_edostavka_get_delivery_tariff_type( 'door' ) ),
-					'default_state_name' 		=> WC()->customer->get_state(),
+					'default_state_name' 		=> WC()->customer->get_billing_state(),
 					'chosen_method'				=> wc_edostavka_get_chosen_shipping_method()
 				)
 			);
 		}
 
 		public function admin_enqueue_scripts( $hook ) {
-
+			$countries = new WC_Countries();
 			wp_register_script( 'edostavka-admin', plugins_url( '/assets/js/admin.js', __FILE__ ), array( 'jquery' ), self::VERSION, true );
 			wp_localize_script( 'edostavka-admin', 'wc_params', array(
-				'default_country' => WC_Countries::get_base_country(),
+				'default_country' => $countries->get_base_country(),
 				'api_url'         => $this->get_api_url()
 			) );
 
@@ -382,7 +383,7 @@ if ( is_woocommerce_active() ) {
 				}
 				$html_billing_delivery_point .= '</select>';
 
-				$html_billing_delivery_points_map = sprintf( "<div id='edostavka_map' data-state-name='%s' data-state-id='%s' data-points='%s'></div>", WC()->customer->get_state(), wc_edostavka_get_customer_state_id(), json_encode( $delivery_points ) );
+				$html_billing_delivery_points_map = sprintf( "<div id='edostavka_map' data-state-name='%s' data-state-id='%s' data-points='%s'></div>", WC()->customer->get_billing_state(), wc_edostavka_get_customer_state_id(), json_encode( $delivery_points ) );
 			}
 			$fragments['#billing_delivery_point'] = $html_billing_delivery_point;
 			$fragments['#edostavka_map'] = $html_billing_delivery_points_map;
@@ -390,7 +391,7 @@ if ( is_woocommerce_active() ) {
 		}
 
 		public function default_checkout_state( $value = '' ){
-			$state = WC()->customer->get_state();
+			$state = WC()->customer->get_billing_state();
 			if( $value == '' || is_numeric( $value ) ) {
 				$value = ( $state && ! is_numeric( $state ) ) ? $state : wc_edostavka_get_option('city_origin_name');
 			}
