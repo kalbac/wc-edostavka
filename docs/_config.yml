@@ -3,4 +3,4 @@ description: [Калькулятор стоимости доставки кур�
 markdown: kramdown
 show_downloads: ["true"]
 google_analytics: [UA-21586186-3]
-theme: jekyll-theme-custom
+theme: jekyll-theme-cayman
